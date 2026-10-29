@@ -43,7 +43,7 @@ interface PublicPagesProps {
   customCodes?: PlatformCustomCodesConfig | null;
   adPreference: AdPreferenceMode;
   onChangeAdPreference: (pref: AdPreferenceMode) => void;
-  onGoogleLogin: () => Promise<void>;
+  onGoogleLogin: (emailHint?: string, nameHint?: string) => Promise<void>;
   onSessionAccountLogin: (uid: string, email: string, name: string) => void;
   sessionAccountName?: string;
   sessionAccountEmail?: string;
@@ -295,6 +295,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [sortBy, setSortBy] = useState<'views' | 'recent'>('views');
+  const [copiedPublicSlug, setCopiedPublicSlug] = useState<string | null>(null);
 
   // Auth Forms State
   const [authEmail, setAuthEmail] = useState('arjun.mehta@sharedabba.in');
@@ -320,11 +321,11 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
   const [reportDetails, setReportDetails] = useState('');
   const [reportSuccess, setReportSuccess] = useState<string | null>(null);
 
-  const handleFirebaseGoogleClick = async () => {
+  const handleFirebaseGoogleClick = async (emailHint?: string, nameHint?: string) => {
     if (googleSigningIn) return;
     setGoogleSigningIn(true);
     try {
-      await onGoogleLogin();
+      await onGoogleLogin(emailHint, nameHint);
     } finally {
       setGoogleSigningIn(false);
     }
@@ -528,7 +529,6 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                     <Zap className="w-3.5 h-3.5 text-amber-500 icon-anim-bolt" />
                     Lightning-Fast UPI & USDT Payouts
                   </span>
-                  <InrCurrencyNoteBadge amountLabel={`₹${(targetCpm * inrRate).toFixed(0)} / 1k Views`} />
                   <span className="px-2.5 py-1 rounded-md border border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300 font-semibold">
                     2 Plans: ${balancedCpm.toFixed(2)} & ${maxAdsCpm.toFixed(2)} CPM
                   </span>
@@ -538,34 +538,42 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                   className="text-3xl sm:text-5xl lg:text-[52px] font-bold tracking-tight text-neutral-950 dark:text-white leading-[1.08]"
                   style={{ textWrap: 'balance' }}
                 >
-                  Your Content. Your Links. Your Earnings.
+                  {customCodes?.customHeroHeadline?.trim() || 'Your Content. Your Links. Your Earnings.'}
                 </h1>
                 <p className="text-sm sm:text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed max-w-xl">
-                  Upload files and videos, share monetized links anywhere, switch between our 2 official plans (<strong>${balancedCpm.toFixed(2)} Balanced Plan</strong> or <strong>${maxAdsCpm.toFixed(2)} Max Ads Plan</strong>), and withdraw instantly via India UPI (₹ INR) or Global USDT.
+                  {customCodes?.customHeroSubheadline?.trim() ? (
+                    customCodes.customHeroSubheadline
+                  ) : (
+                    <>
+                      Upload files and videos, share monetized links anywhere, switch between our 2 official plans (<strong>${balancedCpm.toFixed(2)} Balanced Plan</strong> or <strong>${maxAdsCpm.toFixed(2)} Max Ads Plan</strong>), and withdraw instantly via India UPI (₹ INR) or Global USDT.
+                    </>
+                  )}
                 </p>
               </div>
 
               <div className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg">
                   <button
+                    id="hero-start-earning-btn"
                     type="button"
-                    onClick={() => onNavigate('dashboard')}
-                    className="min-h-[46px] px-5 py-3 rounded-lg bg-gradient-to-r from-neutral-950 via-blue-950 to-neutral-900 dark:from-white dark:via-blue-50 dark:to-white text-white dark:text-neutral-950 border border-blue-500/35 font-semibold text-sm hover:opacity-95 transition-all inline-flex items-center justify-center gap-2 w-full shadow-sm"
+                    onClick={() => onNavigate('register')}
+                    className="min-h-[46px] px-5 py-3 rounded-lg bg-gradient-to-r from-neutral-950 via-blue-950 to-indigo-950 dark:from-white dark:via-blue-50 dark:to-white text-white dark:text-neutral-950 border border-blue-500/45 font-bold text-sm hover:opacity-95 hover:shadow-md transition-all inline-flex items-center justify-center gap-2 w-full shadow-sm cursor-pointer"
                   >
+                    <GoogleGIcon className="w-4 h-4 shrink-0" />
                     <span>Start Earning</span>
                     <ArrowRight className="w-4 h-4 shrink-0" />
                   </button>
                   <button
                     type="button"
                     onClick={() => onNavigate('pricing')}
-                    className="min-h-[46px] px-5 py-3 rounded-lg color-graded-panel text-neutral-900 dark:text-white font-semibold text-sm hover:border-blue-500 transition-colors inline-flex items-center justify-center gap-2 w-full"
+                    className="min-h-[46px] px-5 py-3 rounded-lg color-graded-panel text-neutral-900 dark:text-white font-semibold text-sm hover:border-blue-500 transition-colors inline-flex items-center justify-center gap-2 w-full cursor-pointer"
                   >
                     <Sliders className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
                     <span>Compare ${balancedCpm.toFixed(0)} & ${maxAdsCpm.toFixed(0)} CPM Plans</span>
                   </button>
                 </div>
 
-                {/* Chunked Cloud Upload + Firebase Google Sign-Up Card (Replaced Test Upload Speed Button) */}
+                {/* Chunked Cloud Upload + Firebase Google Sign-Up Card */}
                 <div className="p-4 sm:p-5 rounded-xl color-graded-panel space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2.5">
@@ -577,17 +585,17 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                           Instant Creator Onboarding & Cloud Upload
                         </span>
                         <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">
-                          MP4 · ZIP · PDF · APK · SHA-256 Verified · Firebase Auth
+                          MP4 · ZIP · PDF · APK · SHA-256 Verified · Firebase Google Auth
                         </span>
                       </div>
                     </div>
                     <InrCurrencyNoteBadge amountLabel="₹ INR + USDT Ready" altAnim />
                   </div>
 
-                  {/* Beautiful, Clickable, Fully Functional Firebase Google Sign-Up Button */}
+                  {/* Clickable Firebase Google Sign-Up Button */}
                   <button
                     type="button"
-                    onClick={handleFirebaseGoogleClick}
+                    onClick={() => onNavigate('register')}
                     disabled={googleSigningIn}
                     className="google-signup-btn min-h-[48px] w-full px-4 py-3 rounded-xl font-bold text-xs sm:text-sm text-neutral-950 dark:text-white flex items-center justify-between gap-3 cursor-pointer"
                   >
@@ -598,11 +606,11 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                       <span className="truncate">
                         {googleSigningIn
                           ? 'Connecting to Firebase Google Auth...'
-                          : 'Sign Up / Continue with Google'}
+                          : 'Sign Up / Continue with Google (Firebase)'}
                       </span>
                     </span>
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-600 text-white text-[11px] font-mono font-semibold shrink-0">
-                      <span>{sessionAccountEmail ? 'Open Studio' : 'Instant Access'}</span>
+                      <span>Start Earning</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </span>
                   </button>
@@ -610,11 +618,11 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono tabular-nums text-neutral-500 dark:text-neutral-400 pt-0.5">
                     <span className="truncate max-w-full">
                       {sessionAccountEmail
-                        ? `Connected: ${sessionAccountName || 'Creator'} (${sessionAccountEmail})`
+                        ? `Active Session: ${sessionAccountName || 'Creator'} (${sessionAccountEmail})`
                         : 'One-click Google Sign Up activates $2.00 Balanced & $3.00 Max Ads monetization'}
                     </span>
                     <span className="shrink-0 font-semibold text-emerald-700 dark:text-emerald-400">
-                      100% Verified
+                      Firebase Verified
                     </span>
                   </div>
                 </div>
@@ -1390,67 +1398,6 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                 />
               </div>
 
-              {/* Interactive Live USDT/INR & USD/INR Rate Adjuster inside Calculator */}
-              <div className="p-3.5 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-emerald-500/30 space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <label
-                    htmlFor="live-usdt-inr-range"
-                    className="font-semibold text-neutral-900 dark:text-white flex items-center gap-2"
-                  >
-                    <Coins className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>Adjust Live USDT / INR Rate (1 USDT = ₹{usdtInrRate.toFixed(2)} INR)</span>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-mono text-neutral-500">
-                      UPI USD/INR: ₹{inrRate.toFixed(2)} · {fxSource}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleSyncLiveMarketRate}
-                      disabled={syncingFx}
-                      className="px-2.5 py-1 rounded bg-emerald-600 text-white text-[11px] font-mono font-semibold inline-flex items-center gap-1 hover:bg-emerald-700 transition-colors"
-                    >
-                      <RefreshCw className={`w-3 h-3 ${syncingFx ? 'animate-spin' : ''}`} />
-                      <span>Sync Live</span>
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <input
-                    id="live-usdt-inr-range"
-                    type="range"
-                    min={80}
-                    max={105}
-                    step={0.05}
-                    value={usdtInrRate}
-                    onChange={(e) => {
-                      const nextUsdt = Number(e.target.value);
-                      setUsdtInrRate(nextUsdt);
-                      setInrRate(Number(Math.max(78, nextUsdt - 1.85).toFixed(2)));
-                    }}
-                    onMouseUp={() => handlePersistCustomUsdtInrRate(usdtInrRate, inrRate)}
-                    onTouchEnd={() => handlePersistCustomUsdtInrRate(usdtInrRate, inrRate)}
-                    className="flex-1 accent-emerald-600 cursor-pointer"
-                  />
-                  <input
-                    type="number"
-                    aria-label="Live USDT to INR rate"
-                    step="0.05"
-                    min={75}
-                    max={105}
-                    value={usdtInrRate}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      if (!Number.isNaN(val)) {
-                        setUsdtInrRate(val);
-                      }
-                    }}
-                    onBlur={() => handlePersistCustomUsdtInrRate(usdtInrRate, inrRate)}
-                    className="w-24 px-2.5 py-1 text-xs font-mono font-bold text-right rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950"
-                  />
-                </div>
-              </div>
-
               {/* Active Plan 30-Day Payout Breakdown */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-neutral-200 dark:border-neutral-800">
                 <div className="p-3.5 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800">
@@ -1641,7 +1588,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
         </div>
 
         {filtered.length === 0 ? (
-          <div className="p-12 text-center border border-neutral-200 dark:border-neutral-800 rounded-lg space-y-3">
+          <div className="p-12 text-center rounded-xl color-graded-panel space-y-3">
             <p className="text-sm font-semibold text-neutral-900 dark:text-white">
               No matching public videos or files found
             </p>
@@ -1664,7 +1611,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
             {filtered.map((f) => (
               <div
                 key={f.id}
-                className="border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden bg-white dark:bg-neutral-900 flex flex-col justify-between"
+                className="rounded-xl color-graded-panel overflow-hidden flex flex-col justify-between"
               >
                 <div>
                   <button
@@ -1701,16 +1648,30 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                   </div>
                 </div>
 
-                <div className="px-5 py-3.5 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-xs">
-                  <button
-                    type="button"
-                    onClick={() => onNavigate('shared-landing', f)}
-                    className="px-3.5 py-1.5 rounded-md bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 font-semibold whitespace-nowrap"
-                  >
-                    Watch / Download
-                  </button>
-                  <span className="font-mono text-neutral-500">
-                    Malware Scan: {f.malwareScanStatus.toUpperCase()}
+                <div className="px-5 py-3.5 border-t border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('shared-landing', f)}
+                      className="px-3.5 py-1.5 rounded-md bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 font-semibold whitespace-nowrap"
+                    >
+                      Watch / Download
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const shareUrl = `${window.location.origin}/?v=${f.slug}`;
+                        navigator.clipboard?.writeText(shareUrl);
+                        setCopiedPublicSlug(f.slug);
+                        setTimeout(() => setCopiedPublicSlug(null), 1600);
+                      }}
+                      className="px-2.5 py-1.5 rounded-md border border-neutral-300 dark:border-neutral-700 font-mono text-[11px] font-semibold text-neutral-800 dark:text-neutral-200 whitespace-nowrap"
+                    >
+                      {copiedPublicSlug === f.slug ? 'Copied Link!' : 'Copy Link'}
+                    </button>
+                  </div>
+                  <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">
+                    {f.malwareScanStatus.toUpperCase()}
                   </span>
                 </div>
               </div>
@@ -1761,7 +1722,20 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
             </h1>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                const shareUrl = `${window.location.origin}/?v=${file.slug}`;
+                navigator.clipboard?.writeText(shareUrl);
+                setCopiedPublicSlug(`shared-${file.slug}`);
+                setTimeout(() => setCopiedPublicSlug(null), 1600);
+              }}
+              className="px-3.5 py-2 rounded-md border border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              <span>{copiedPublicSlug === `shared-${file.slug}` ? 'Copied Share Link!' : 'Copy Share Link'}</span>
+            </button>
             {file.allowDownload && (
               <a
                 href={`data:text/plain;charset=utf-8,${encodeURIComponent(
@@ -2167,11 +2141,11 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
 
           <button
             type="button"
-            onClick={handleFirebaseGoogleClick}
-            className="google-signup-btn min-h-[44px] px-4 py-2.5 rounded-xl font-bold text-xs text-neutral-950 dark:text-white inline-flex items-center gap-2.5 shrink-0"
+            onClick={() => onNavigate('register')}
+            className="google-signup-btn min-h-[44px] px-4 py-2.5 rounded-xl font-bold text-xs text-neutral-950 dark:text-white inline-flex items-center gap-2.5 shrink-0 cursor-pointer"
           >
             <GoogleGIcon className="w-4 h-4" />
-            <span>Sign Up with Google & Activate Plan</span>
+            <span>Start Earning — Sign Up with Google</span>
           </button>
         </div>
 
@@ -2374,7 +2348,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
   }
 
   // ---------------------------------------------------------------------------
-  // 14-17. AUTHENTICATION PAGES (Login, Register, Verify Email, Password Recovery)
+  // 14-17. AUTHENTICATION PAGES (Firebase Google Sign-Up / Login / Verify / Recover)
   // ---------------------------------------------------------------------------
   if (
     route === 'login' ||
@@ -2382,192 +2356,273 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
     route === 'verify-email' ||
     route === 'recover-password'
   ) {
+    const cleanTypedEmail = authEmail.trim().toLowerCase();
+    const isTypedSuperAdmin = cleanTypedEmail === 'rudraxsikkim@gmail.com';
+
+    const handleCompleteAuthFlow = (emailInput: string, nameInput: string) => {
+      const normalized = (emailInput || '').trim().toLowerCase();
+      if (!normalized || !normalized.includes('@')) {
+        setAuthMessage('Please enter a valid Google or email address to continue.');
+        return;
+      }
+      if (route === 'register' && !ageConfirmed) {
+        setAuthMessage('You must confirm age eligibility (18+) to monetize and withdraw.');
+        return;
+      }
+
+      if (normalized === 'rudraxsikkim@gmail.com') {
+        onSessionAccountLogin('admin_super_01', 'rudraxsikkim@gmail.com', 'Rudra (Super Admin)');
+        onNavigate('admin');
+      } else {
+        const resolvedUid =
+          normalized === 'arjun.mehta@sharedabba.in'
+            ? 'creator_arjun_01'
+            : `creator_${normalized.replace(/[^a-z0-9]/g, '_')}`;
+        const resolvedName =
+          (nameInput || '').trim() ||
+          (normalized === 'arjun.mehta@sharedabba.in'
+            ? 'Arjun Mehta Studio'
+            : normalized.split('@')[0]);
+        onSessionAccountLogin(resolvedUid, normalized, resolvedName);
+        onNavigate('dashboard');
+      }
+    };
+
     return (
-      <div className="max-w-md mx-auto px-6 py-14">
-        <div className="p-8 rounded-2xl color-graded-panel space-y-6">
-          <div className="space-y-1">
-            <p className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold">
-              SHAREDABBA ACCOUNT ACCESS
-            </p>
-            <h1 className="text-2xl font-bold text-neutral-950 dark:text-white">
-              {route === 'login' && 'Sign In to ShareDabba'}
-              {route === 'register' && 'Create Creator Account'}
-              {route === 'verify-email' && 'Verify Email Address'}
-              {route === 'recover-password' && 'Reset Account Password'}
-            </h1>
-          </div>
+      <div id="firebase-google-signup-page" className="max-w-lg mx-auto px-4 sm:px-6 py-12 sm:py-14">
+        <div className="liquid-retina-card">
+          <div className="liquid-retina-inner bg-white dark:bg-neutral-950 p-6 sm:p-8 space-y-6">
+            <div className="liquid-retina-glow" aria-hidden="true" />
 
-          {authMessage && (
-            <div className="p-3 rounded bg-neutral-100 dark:bg-neutral-800 text-xs font-mono text-neutral-900 dark:text-white">
-              {authMessage}
-            </div>
-          )}
-
-          {(route === 'login' || route === 'register') && (
-            <>
-              <button
-                type="button"
-                onClick={handleFirebaseGoogleClick}
-                disabled={googleSigningIn}
-                className="google-signup-btn min-h-[46px] w-full py-2.5 px-4 rounded-xl font-bold text-xs text-neutral-950 dark:text-white flex items-center justify-center gap-2.5 cursor-pointer"
-              >
-                <GoogleGIcon className="w-4 h-4 shrink-0" />
-                <span>
-                  {googleSigningIn
-                    ? 'Connecting to Firebase Google Auth...'
-                    : 'Sign Up / Continue with Google (Firebase)'}
-                </span>
-              </button>
-
-              <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-neutral-200 dark:border-neutral-800" />
-                <span className="flex-shrink mx-3 text-[11px] font-mono text-neutral-400">
-                  OR EMAIL CREDENTIALS
-                </span>
-                <div className="flex-grow border-t border-neutral-200 dark:border-neutral-800" />
+            <div className="relative z-10 space-y-6">
+              <div className="space-y-1.5 border-b border-neutral-200 dark:border-neutral-800 pb-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-mono text-blue-600 dark:text-blue-400 font-bold">
+                    <GoogleGIcon className="w-3.5 h-3.5" />
+                    <span>FIREBASE GOOGLE AUTH & ACCOUNT PORTAL</span>
+                  </span>
+                  <span className="px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-mono text-[10px] font-bold">
+                    OAUTH 2.0 VERIFIED
+                  </span>
+                </div>
+                <h1 className="text-2xl font-bold text-neutral-950 dark:text-white">
+                  {route === 'login' && 'Sign In with Google to ShareDabba'}
+                  {route === 'register' && 'Firebase Google Sign-Up — Start Earning'}
+                  {route === 'verify-email' && 'Verify Email Address'}
+                  {route === 'recover-password' && 'Reset Account Password'}
+                </h1>
+                <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                  {route === 'register'
+                    ? 'Sign up with your Google account to activate $2.00 Balanced & $3.00 Max Ads link monetization and instant UPI / USDT payouts.'
+                    : 'Authenticate with your Google account or registered email credentials.'}
+                </p>
               </div>
 
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (route === 'register' && !ageConfirmed) {
-                    setAuthMessage('You must confirm age eligibility (18+) to monetize and withdraw.');
-                    return;
-                  }
-                  onSessionAccountLogin('creator_arjun_01', authEmail, authName);
-                  onNavigate('dashboard');
-                }}
-                className="space-y-4"
-              >
-                {route === 'register' && (
-                  <div>
-                    <label className="block text-xs font-medium mb-1">Creator / Studio Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={authName}
-                      onChange={(e) => setAuthName(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950"
-                    />
+              {authMessage && (
+                <div className="p-3 rounded-xl border border-blue-500/35 bg-blue-500/10 text-xs font-mono text-neutral-900 dark:text-white">
+                  {authMessage}
+                </div>
+              )}
+
+              {(route === 'login' || route === 'register') && (
+                <>
+                  {/* Primary Firebase Google Sign-Up Console */}
+                  <div className="p-4 rounded-xl color-graded-panel space-y-3.5">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="font-bold text-neutral-950 dark:text-white flex items-center gap-2">
+                        <GoogleGIcon className="w-4 h-4 shrink-0" />
+                        <span>Google Account Identity (Firebase Auth)</span>
+                      </span>
+                      <span
+                        id="auth-role-binding-badge"
+                        className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold ${
+                          isTypedSuperAdmin
+                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40'
+                            : 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30'
+                        }`}
+                      >
+                        {isTypedSuperAdmin ? 'SUPER ADMIN BOUND' : 'NORMAL CREATOR ACCOUNT'}
+                      </span>
+                    </div>
+
+                    <button
+                      id="firebase-google-signup-btn"
+                      type="button"
+                      onClick={() => handleFirebaseGoogleClick(authEmail, authName)}
+                      disabled={googleSigningIn}
+                      className="google-signup-btn min-h-[48px] w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-neutral-950 dark:text-white flex items-center justify-between gap-2.5 cursor-pointer shadow-xs"
+                    >
+                      <span className="inline-flex items-center gap-2.5 min-w-0">
+                        <GoogleGIcon className="w-4 h-4 shrink-0" />
+                        <span className="truncate">
+                          {googleSigningIn
+                            ? 'Connecting to Firebase Google Auth...'
+                            : route === 'register'
+                            ? 'Sign Up with Google (Firebase Auth)'
+                            : 'Continue with Google (Firebase Auth)'}
+                        </span>
+                      </span>
+                      <span className="px-2.5 py-1 rounded-md bg-blue-600 text-white text-[11px] font-mono font-semibold shrink-0">
+                        {isTypedSuperAdmin ? 'Open /admin →' : 'Open Studio →'}
+                      </span>
+                    </button>
+
+                    <p className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                      {isTypedSuperAdmin ? (
+                        <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                          ✓ Verified Super Admin Email ({cleanTypedEmail}): Will authenticate directly into the Super Admin Governance Portal (/admin).
+                        </span>
+                      ) : (
+                        <span>
+                          ✓ Creator Account ({cleanTypedEmail || 'new creator'}): Will register & route directly to the Creator Dashboard (/dashboard).
+                        </span>
+                      )}
+                    </p>
                   </div>
-                )}
-                <div>
-                  <label className="block text-xs font-medium mb-1">Email Address</label>
+
+                  <div className="relative flex py-1 items-center">
+                    <div className="flex-grow border-t border-neutral-200 dark:border-neutral-800" />
+                    <span className="flex-shrink mx-3 text-[11px] font-mono text-neutral-400">
+                      ACCOUNT EMAIL & PROFILE DETAILS
+                    </span>
+                    <div className="flex-grow border-t border-neutral-200 dark:border-neutral-800" />
+                  </div>
+
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleCompleteAuthFlow(authEmail, authName);
+                    }}
+                    className="space-y-4"
+                  >
+                    {route === 'register' && (
+                      <div>
+                        <label
+                          htmlFor="auth-name-input"
+                          className="block text-xs font-semibold text-neutral-800 dark:text-neutral-200 mb-1"
+                        >
+                          Creator / Studio Name
+                        </label>
+                        <input
+                          id="auth-name-input"
+                          type="text"
+                          required
+                          value={authName}
+                          onChange={(e) => setAuthName(e.target.value)}
+                          placeholder="Enter your studio or creator name"
+                          className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white focus:outline-none focus:border-blue-600"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label
+                        htmlFor="auth-email-input"
+                        className="block text-xs font-semibold text-neutral-800 dark:text-neutral-200 mb-1"
+                      >
+                        Google / Account Email Address
+                      </label>
+                      <input
+                        id="auth-email-input"
+                        type="email"
+                        required
+                        value={authEmail}
+                        onChange={(e) => setAuthEmail(e.target.value)}
+                        placeholder="you@gmail.com"
+                        className="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white focus:outline-none focus:border-blue-600"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="auth-password-input"
+                        className="block text-xs font-semibold text-neutral-800 dark:text-neutral-200 mb-1"
+                      >
+                        Password
+                      </label>
+                      <input
+                        id="auth-password-input"
+                        type="password"
+                        required
+                        value={authPassword}
+                        onChange={(e) => setAuthPassword(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white focus:outline-none focus:border-blue-600"
+                      />
+                    </div>
+
+                    {route === 'register' && (
+                      <label className="flex items-start gap-2 text-xs text-neutral-600 dark:text-neutral-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={ageConfirmed}
+                          onChange={(e) => setAgeConfirmed(e.target.checked)}
+                          className="mt-0.5"
+                        />
+                        <span>
+                          I confirm I am at least 18 years old and agree to the ShareDabba Terms, Acceptable-Use Policy, and Monetization Compliance rules.
+                        </span>
+                      </label>
+                    )}
+
+                    <button
+                      id="auth-submit-btn"
+                      type="submit"
+                      className="min-h-[44px] w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-neutral-950 via-blue-950 to-indigo-950 dark:from-white dark:via-blue-50 dark:to-white text-white dark:text-neutral-950 text-xs font-bold hover:opacity-95 transition-opacity cursor-pointer shadow-xs"
+                    >
+                      {isTypedSuperAdmin
+                        ? 'Authenticate Super Admin (rudraxsikkim@gmail.com) →'
+                        : route === 'login'
+                        ? 'Sign In to Creator Dashboard →'
+                        : 'Create Creator Account & Start Earning →'}
+                    </button>
+                  </form>
+                </>
+              )}
+
+              {(route === 'verify-email' || route === 'recover-password') && (
+                <div className="space-y-4">
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                    {route === 'verify-email'
+                      ? 'Enter your registered email address to dispatch a signed verification link.'
+                      : 'Enter your account email to receive a single-use password reset token.'}
+                  </p>
                   <input
                     type="email"
-                    required
                     value={authEmail}
                     onChange={(e) => setAuthEmail(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900"
                   />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAuthMessage(
+                        route === 'verify-email'
+                          ? `Verification status confirmed for ${authEmail}.`
+                          : `Password recovery instructions dispatched for ${authEmail}.`
+                      )
+                    }
+                    className="min-h-[42px] w-full py-2.5 rounded-xl bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-semibold cursor-pointer"
+                  >
+                    {route === 'verify-email' ? 'Verify Email Now' : 'Send Recovery Link'}
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium mb-1">Password</label>
-                  <input
-                    type="password"
-                    required
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950"
-                  />
-                </div>
+              )}
 
-                {route === 'register' && (
-                  <label className="flex items-start gap-2 text-xs text-neutral-600 dark:text-neutral-400">
-                    <input
-                      type="checkbox"
-                      checked={ageConfirmed}
-                      onChange={(e) => setAgeConfirmed(e.target.checked)}
-                      className="mt-0.5"
-                    />
-                    <span>
-                      I confirm I am at least 18 years old and agree to the ShareDabba Terms, Acceptable-Use Policy, and Monetization Compliance rules.
-                    </span>
-                  </label>
-                )}
-
+              <div className="flex items-center justify-between text-xs text-neutral-500 pt-2 border-t border-neutral-200 dark:border-neutral-800">
                 <button
-                  type="submit"
-                  className="w-full py-2.5 rounded-md bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-semibold"
+                  type="button"
+                  onClick={() => onNavigate(route === 'login' ? 'register' : 'login')}
+                  className="font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                 >
-                  {route === 'login' ? 'Sign In to Dashboard' : 'Create Account & Verify Email'}
+                  {route === 'login' ? 'Create a Creator Account (Google Sign-Up)' : 'Already have an account? Sign In'}
                 </button>
-              </form>
-
-              <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800 space-y-2">
-                <p className="text-[11px] font-mono text-neutral-500">
-                  INSTANT WORKSPACE ROLE SWITCHER (VERIFIED DEMO ACCOUNTS)
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSessionAccountLogin('creator_arjun_01', 'arjun.mehta@sharedabba.in', 'Arjun Mehta Studio');
-                      onNavigate('dashboard');
-                    }}
-                    className="px-3 py-2 rounded border border-neutral-300 dark:border-neutral-700 text-xs font-medium hover:bg-neutral-50 dark:hover:bg-neutral-800"
-                  >
-                    Creator Account
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSessionAccountLogin('admin_super_01', 'rudraxsikkim@gmail.com', 'Rudra (Super Admin)');
-                      onNavigate('admin');
-                    }}
-                    className="px-3 py-2 rounded border border-neutral-300 dark:border-neutral-700 text-xs font-medium hover:bg-neutral-50 dark:hover:bg-neutral-800"
-                  >
-                    Super Admin (/admin)
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('recover-password')}
+                  className="hover:underline cursor-pointer"
+                >
+                  Forgot password?
+                </button>
               </div>
-            </>
-          )}
-
-          {(route === 'verify-email' || route === 'recover-password') && (
-            <div className="space-y-4">
-              <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                {route === 'verify-email'
-                  ? 'Enter your registered email address to dispatch a signed verification link.'
-                  : 'Enter your account email to receive a single-use password reset token.'}
-              </p>
-              <input
-                type="email"
-                value={authEmail}
-                onChange={(e) => setAuthEmail(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-md border border-neutral-300 dark:border-neutral-700"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  setAuthMessage(
-                    route === 'verify-email'
-                      ? `Verification status confirmed for ${authEmail}.`
-                      : `Password recovery instructions dispatched for ${authEmail}.`
-                  )
-                }
-                className="w-full py-2.5 rounded-md bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-semibold"
-              >
-                {route === 'verify-email' ? 'Verify Email Now' : 'Send Recovery Link'}
-              </button>
             </div>
-          )}
-
-          <div className="flex items-center justify-between text-xs text-neutral-500 pt-2">
-            <button
-              type="button"
-              onClick={() => onNavigate(route === 'login' ? 'register' : 'login')}
-              className="hover:underline"
-            >
-              {route === 'login' ? 'Create an account' : 'Back to Sign In'}
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('recover-password')}
-              className="hover:underline"
-            >
-              Forgot password?
-            </button>
           </div>
         </div>
       </div>
@@ -2580,18 +2635,32 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
   if (route === 'creator-profile') {
     return (
       <div className="max-w-7xl mx-auto px-6 py-12 space-y-8">
-        <div className="p-6 rounded-lg border border-neutral-200 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <p className="text-xs font-mono text-neutral-500">VERIFIED SHAREDABBA CREATOR</p>
-            <h1 className="text-2xl font-bold text-neutral-950 dark:text-white">
-              Arjun Mehta Studio (@arjunmehta)
-            </h1>
-            <p className="text-xs text-neutral-600 dark:text-neutral-400 max-w-2xl">
-              Independent architectural filmmaker, industrial hardware reviewer, and open-source educator based in Bengaluru.
-            </p>
-          </div>
-          <div className="text-xs font-mono tabular-nums text-neutral-600 dark:text-neutral-400">
-            {publicFiles.length} Public Releases · {publicFiles.reduce((a, b) => a + b.viewsCount, 0).toLocaleString()} Total Views
+        <div className="liquid-retina-card">
+          <div className="liquid-retina-inner bg-white dark:bg-neutral-950 p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="liquid-retina-glow" aria-hidden="true" />
+            <div className="relative z-10 space-y-1.5">
+              <p className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold">
+                VERIFIED SHAREDABBA CREATOR STUDIO
+              </p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-neutral-950 dark:text-white">
+                Arjun Mehta Studio (@arjunmehta)
+              </h1>
+              <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 max-w-2xl">
+                Independent architectural filmmaker, industrial hardware reviewer, and open-source educator based in Bengaluru.
+              </p>
+            </div>
+            <div className="relative z-10 flex flex-col sm:items-end gap-2">
+              <div className="text-xs font-mono tabular-nums text-neutral-600 dark:text-neutral-400">
+                {publicFiles.length} Public Releases · {publicFiles.reduce((a, b) => a + b.viewsCount, 0).toLocaleString()} Total Views
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate('dashboard')}
+                className="px-4 py-2 rounded-lg bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-semibold"
+              >
+                Open Creator Studio
+              </button>
+            </div>
           </div>
         </div>
 
@@ -2599,7 +2668,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
           {publicFiles.map((f) => (
             <div
               key={f.id}
-              className="border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden bg-white dark:bg-neutral-900 flex flex-col justify-between"
+              className="rounded-xl color-graded-panel overflow-hidden flex flex-col justify-between"
             >
               <button
                 type="button"
@@ -2613,6 +2682,26 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                   {f.category} · {formatBytes(f.sizeBytes)} · {f.viewsCount.toLocaleString()} views
                 </p>
                 <h3 className="text-sm font-bold text-neutral-950 dark:text-white">{f.title}</h3>
+                <div className="pt-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('shared-landing', f)}
+                    className="px-3 py-1.5 rounded-md bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-semibold"
+                  >
+                    Watch / Download
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(`${window.location.origin}/?v=${f.slug}`);
+                      setCopiedPublicSlug(`prof-${f.slug}`);
+                      setTimeout(() => setCopiedPublicSlug(null), 1600);
+                    }}
+                    className="px-2.5 py-1.5 rounded-md border border-neutral-300 dark:border-neutral-700 text-xs font-mono"
+                  >
+                    {copiedPublicSlug === `prof-${f.slug}` ? 'Copied!' : 'Copy Link'}
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -2625,29 +2714,33 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
   // 20. CUSTOM 404 & ERROR PAGE
   // ---------------------------------------------------------------------------
   return (
-    <div className="max-w-xl mx-auto px-6 py-24 text-center space-y-4">
-      <p className="text-xs font-mono text-neutral-500">HTTP 404 · ROUTE NOT FOUND</p>
-      <h1 className="text-3xl font-bold text-neutral-950 dark:text-white">
-        This ShareDabba Link or Page Does Not Exist
-      </h1>
-      <p className="text-sm text-neutral-600 dark:text-neutral-400">
-        The link may have expired, been set to private by its creator, or removed under our copyright and acceptable-use policy.
-      </p>
-      <div className="flex justify-center gap-3 pt-2">
-        <button
-          type="button"
-          onClick={() => onNavigate('home')}
-          className="px-4 py-2 rounded-md bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-semibold"
-        >
-          Return Home
-        </button>
-        <button
-          type="button"
-          onClick={() => onNavigate('explore')}
-          className="px-4 py-2 rounded-md border border-neutral-300 dark:border-neutral-700 text-xs font-semibold"
-        >
-          Explore Public Videos
-        </button>
+    <div className="max-w-xl mx-auto px-6 py-24 text-center">
+      <div className="p-8 rounded-2xl color-graded-panel space-y-4">
+        <p className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold">
+          HTTP 404 · ROUTE NOT FOUND
+        </p>
+        <h1 className="text-3xl font-bold text-neutral-950 dark:text-white">
+          This ShareDabba Link or Page Does Not Exist
+        </h1>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          The link may have expired, been set to private by its creator, or removed under our copyright and acceptable-use policy.
+        </p>
+        <div className="flex justify-center gap-3 pt-2">
+          <button
+            type="button"
+            onClick={() => onNavigate('home')}
+            className="px-4 py-2 rounded-md bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-semibold"
+          >
+            Return Home
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('explore')}
+            className="px-4 py-2 rounded-md border border-neutral-300 dark:border-neutral-700 text-xs font-semibold"
+          >
+            Explore Public Videos
+          </button>
+        </div>
       </div>
     </div>
   );

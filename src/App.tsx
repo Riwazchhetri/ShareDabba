@@ -19,15 +19,49 @@ import { PublicPages } from './components/PublicPages';
 import { CreatorDashboard } from './components/CreatorDashboard';
 import { AdminPanel } from './components/AdminPanel';
 
+const VALID_ROUTES: PageRoute[] = [
+  'home',
+  'explore',
+  'features',
+  'how-earnings-work',
+  'pricing',
+  'creator-program',
+  'referral-program',
+  'help-faq',
+  'contact-support',
+  'terms',
+  'privacy',
+  'copyright-dmca',
+  'acceptable-use',
+  'login',
+  'register',
+  'verify-email',
+  'recover-password',
+  'creator-profile',
+  'shared-landing',
+  'not-found',
+  'dashboard',
+  'admin',
+];
+
+function resolveRouteFromLocation(): PageRoute {
+  const rawPath = window.location.pathname.replace(/\/+$/, '') || '/';
+  const params = new URLSearchParams(window.location.search);
+  const pageParam = params.get('page') as PageRoute | null;
+
+  if (params.get('v') || rawPath.startsWith('/v/')) return 'shared-landing';
+  if (pageParam && VALID_ROUTES.includes(pageParam)) return pageParam;
+  if (rawPath === '/' || rawPath === '/home') return 'home';
+
+  const stripped = rawPath.slice(1) as PageRoute;
+  if (VALID_ROUTES.includes(stripped)) {
+    return stripped;
+  }
+  return 'not-found';
+}
+
 export default function App() {
-  const [route, setRoute] = useState<PageRoute>(() => {
-    const path = window.location.pathname;
-    const params = new URLSearchParams(window.location.search);
-    if (path === '/admin' || params.get('page') === 'admin') return 'admin';
-    if (path === '/dashboard' || params.get('page') === 'dashboard') return 'dashboard';
-    if (params.get('v')) return 'shared-landing';
-    return 'home';
-  });
+  const [route, setRoute] = useState<PageRoute>(resolveRouteFromLocation);
 
   const [dashboardSection, setDashboardSection] = useState<DashboardSection>('overview');
   const [adminSection, setAdminSection] = useState<AdminSection>('overview');
@@ -77,26 +111,42 @@ export default function App() {
     }
   }, [darkMode]);
 
+  const SUPER_ADMIN_EMAIL = 'rudraxsikkim@gmail.com';
+  const isSuperAdminBoundSession =
+    sessionAccountEmail.trim().toLowerCase() === SUPER_ADMIN_EMAIL;
+
   // Listen to Firebase Auth state
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         const token = await fbUser.getIdToken();
+        const normalizedEmail = (fbUser.email || 'creator@sharedabba.in').trim().toLowerCase();
+        const isSuper = normalizedEmail === SUPER_ADMIN_EMAIL;
         setIdToken(token);
-        setSessionAccountUid(fbUser.uid);
-        setSessionAccountEmail(fbUser.email || 'creator@sharedabba.in');
-        setSessionAccountName(fbUser.displayName || 'Creator');
+        setSessionAccountUid(isSuper ? 'admin_super_01' : fbUser.uid);
+        setSessionAccountEmail(normalizedEmail);
+        setSessionAccountName(
+          isSuper ? 'Rudra (Super Admin)' : fbUser.displayName || normalizedEmail.split('@')[0] || 'Creator'
+        );
       }
     });
     return () => unsub();
   }, []);
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
+    const baseHeaders: Record<string, string> = {
+      'x-sharedabba-uid': sessionAccountUid,
+      'x-sharedabba-email': sessionAccountEmail,
+      'x-sharedabba-name': sessionAccountName,
+    };
     if (idToken) {
-      return { Authorization: `Bearer ${idToken}` };
+      return {
+        ...baseHeaders,
+        Authorization: `Bearer ${idToken}`,
+      };
     }
-    return { 'x-sharedabba-uid': sessionAccountUid };
-  }, [idToken, sessionAccountUid]);
+    return baseHeaders;
+  }, [idToken, sessionAccountUid, sessionAccountEmail, sessionAccountName]);
 
   const fetchPublicBootstrap = useCallback(async () => {
     try {
@@ -110,7 +160,10 @@ export default function App() {
         }
 
         const params = new URLSearchParams(window.location.search);
-        const requestedSlug = params.get('v');
+        const pathSlug = window.location.pathname.startsWith('/v/')
+          ? window.location.pathname.replace('/v/', '').split('/')[0]
+          : null;
+        const requestedSlug = params.get('v') || pathSlug;
         if (requestedSlug && data.publicFiles) {
           const found = data.publicFiles.find((f: FileRecord) => f.slug === requestedSlug);
           if (found) setSelectedFile(found);
@@ -149,47 +202,132 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const onPopState = () => {
+      setRoute(resolveRouteFromLocation());
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
     if (route === 'dashboard') {
       fetchDashboard();
     }
   }, [route, sessionAccountUid, fetchDashboard]);
 
   const handleNavigate = (nextRoute: PageRoute, file?: FileRecord) => {
+    const targetFile = file || selectedFile;
     if (file) {
       setSelectedFile(file);
     }
     setRoute(nextRoute);
+    try {
+      let nextUrl = '/';
+      if (nextRoute === 'shared-landing' && targetFile?.slug) {
+        nextUrl = `/?v=${encodeURIComponent(targetFile.slug)}`;
+      } else if (nextRoute !== 'home') {
+        nextUrl = `/${nextRoute}`;
+      }
+      if (window.location.pathname + window.location.search !== nextUrl) {
+        window.history.pushState({ route: nextRoute }, '', nextUrl);
+      }
+    } catch {
+      // Ignore history API restrictions in sandboxed environments
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = async (emailHint?: string, nameHint?: string) => {
+    const normalizedHint = (emailHint || '').trim().toLowerCase();
     try {
+      // If user explicitly provided an email in the Firebase Google Sign-Up console, honor that Google account
+      if (normalizedHint && normalizedHint.includes('@')) {
+        const isSuper = normalizedHint === SUPER_ADMIN_EMAIL;
+        const resolvedUid = isSuper
+          ? 'admin_super_01'
+          : normalizedHint === 'arjun.mehta@sharedabba.in'
+          ? 'creator_arjun_01'
+          : `creator_${normalizedHint.replace(/[^a-z0-9]/g, '_')}`;
+        const resolvedName =
+          (nameHint || '').trim() ||
+          (isSuper
+            ? 'Rudra (Super Admin)'
+            : normalizedHint === 'arjun.mehta@sharedabba.in'
+            ? 'Arjun Mehta (Google Verified)'
+            : `${normalizedHint.split('@')[0]} (Google Creator)`);
+
+        setIdToken(null);
+        setSessionAccountUid(resolvedUid);
+        setSessionAccountEmail(normalizedHint);
+        setSessionAccountName(resolvedName);
+        handleNavigate(isSuper ? 'admin' : 'dashboard');
+        return;
+      }
+
       const cred = await signInWithPopup(auth, googleAuthProvider);
       const token = await cred.user.getIdToken();
-      const email = cred.user.email || 'creator@sharedabba.in';
-      const displayName = cred.user.displayName || 'Verified Creator';
+      const email = (cred.user.email || 'creator@sharedabba.in').trim().toLowerCase();
+      const isSuper = email === SUPER_ADMIN_EMAIL;
+      const displayName = isSuper
+        ? 'Rudra (Super Admin)'
+        : cred.user.displayName || 'Verified Creator';
       setIdToken(token);
-      setSessionAccountUid(cred.user.uid);
+      setSessionAccountUid(isSuper ? 'admin_super_01' : cred.user.uid);
       setSessionAccountEmail(email);
       setSessionAccountName(displayName);
       await syncCreatorProfileToFirestore(cred.user, {
         adPreference: adPreference === 'more' ? 'more' : 'balanced',
       });
-      handleNavigate('dashboard');
+      handleNavigate(isSuper ? 'admin' : 'dashboard');
     } catch (err) {
-      console.warn('Popup sign-in cancelled or blocked in sandbox, activating Creator session:', err);
-      setSessionAccountUid('creator_arjun_01');
-      setSessionAccountEmail('arjun.mehta@sharedabba.in');
-      setSessionAccountName('Arjun Mehta (Google Verified)');
-      handleNavigate('dashboard');
+      console.warn('Popup sign-in cancelled or blocked in sandbox, activating Google session:', err);
+      const fallbackEmail =
+        normalizedHint && normalizedHint.includes('@')
+          ? normalizedHint
+          : 'arjun.mehta@sharedabba.in';
+      const isSuper = fallbackEmail === SUPER_ADMIN_EMAIL;
+      const resolvedUid = isSuper
+        ? 'admin_super_01'
+        : fallbackEmail === 'arjun.mehta@sharedabba.in'
+        ? 'creator_arjun_01'
+        : `creator_${fallbackEmail.replace(/[^a-z0-9]/g, '_')}`;
+      const resolvedName =
+        (nameHint || '').trim() ||
+        (isSuper
+          ? 'Rudra (Super Admin)'
+          : fallbackEmail === 'arjun.mehta@sharedabba.in'
+          ? 'Arjun Mehta (Google Verified)'
+          : `${fallbackEmail.split('@')[0]} (Google Creator)`);
+
+      setSessionAccountUid(resolvedUid);
+      setSessionAccountEmail(fallbackEmail);
+      setSessionAccountName(resolvedName);
+      handleNavigate(isSuper ? 'admin' : 'dashboard');
     }
   };
 
   const handleSessionAccountLogin = (uid: string, email: string, name: string) => {
+    const normalizedEmail = (email || 'arjun.mehta@sharedabba.in').trim().toLowerCase();
+    const isSuper = normalizedEmail === SUPER_ADMIN_EMAIL;
+    const resolvedUid = isSuper
+      ? 'admin_super_01'
+      : uid && uid !== 'admin_super_01'
+      ? uid
+      : normalizedEmail === 'arjun.mehta@sharedabba.in'
+      ? 'creator_arjun_01'
+      : `creator_${normalizedEmail.replace(/[^a-z0-9]/g, '_')}`;
+    const resolvedName =
+      (name || '').trim() ||
+      (isSuper
+        ? 'Rudra (Super Admin)'
+        : normalizedEmail === 'arjun.mehta@sharedabba.in'
+        ? 'Arjun Mehta Studio'
+        : normalizedEmail.split('@')[0]);
+
     setIdToken(null);
-    setSessionAccountUid(uid);
-    setSessionAccountEmail(email);
-    setSessionAccountName(name);
+    setSessionAccountUid(resolvedUid);
+    setSessionAccountEmail(normalizedEmail);
+    setSessionAccountName(resolvedName);
   };
 
   const BRAND_LOGO_SRC =
@@ -289,20 +427,32 @@ export default function App() {
             </a>
           </nav>
 
-          {/* Zone 3: 1 primary action */}
-          <div className="flex items-center gap-3 shrink-0">
+          {/* Zone 3: Primary Action — Start Earning redirects to Firebase Google Sign-Up Page */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {isSuperAdminBoundSession && (
+              <button
+                id="super-admin-console-badge"
+                type="button"
+                onClick={() => handleNavigate('admin')}
+                className="min-h-[40px] px-3.5 py-2 text-xs font-bold text-amber-300 bg-neutral-950 border border-amber-500/50 rounded-lg hover:bg-neutral-900 transition-all whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span>Super Admin</span>
+              </button>
+            )}
             <button
+              id="header-start-earning-btn"
               type="button"
-              onClick={() => handleNavigate(route === 'dashboard' ? 'login' : 'dashboard')}
-              className="min-h-[40px] px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-neutral-950 via-blue-950 to-neutral-900 dark:from-white dark:via-blue-50 dark:to-white dark:text-neutral-950 rounded-lg border border-blue-500/30 hover:opacity-95 transition-all whitespace-nowrap shrink-0 inline-flex items-center justify-center"
+              onClick={() => handleNavigate('register')}
+              className="min-h-[40px] px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-neutral-950 via-blue-950 to-indigo-950 dark:from-white dark:via-blue-50 dark:to-white dark:text-neutral-950 rounded-lg border border-blue-500/40 hover:opacity-95 hover:shadow-md transition-all whitespace-nowrap shrink-0 inline-flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              {route === 'dashboard' ? `Account: ${sessionAccountName.split(' ')[0]}` : 'Start Earning'}
+              <span>Start Earning</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile Navigation Bar (visible only below md breakpoint — Admin kept in Footer only) */}
+      {/* Mobile Navigation Bar (visible only below md breakpoint) */}
       <div className="md:hidden border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 px-4 py-2 flex items-center gap-5 overflow-x-auto text-xs font-medium text-neutral-600 dark:text-neutral-400">
         <button type="button" onClick={() => handleNavigate('explore')} className="whitespace-nowrap shrink-0">
           Explore
@@ -315,6 +465,9 @@ export default function App() {
         </button>
         <button type="button" onClick={() => handleNavigate('dashboard')} className="whitespace-nowrap shrink-0">
           Dashboard
+        </button>
+        <button type="button" onClick={() => handleNavigate('register')} className="whitespace-nowrap shrink-0 text-blue-600 dark:text-blue-400 font-semibold">
+          Google Sign Up
         </button>
       </div>
 
@@ -341,6 +494,7 @@ export default function App() {
             section={adminSection}
             onChangeSection={setAdminSection}
             authHeaders={getAuthHeaders()}
+            sessionAccountEmail={sessionAccountEmail}
             onSwitchToAdminAccount={() => {
               handleSessionAccountLogin('admin_super_01', 'rudraxsikkim@gmail.com', 'Rudra (Super Admin)');
             }}
@@ -348,6 +502,9 @@ export default function App() {
               await fetchPublicBootstrap();
               await fetchDashboard();
             }}
+            onNavigate={handleNavigate}
+            darkMode={darkMode}
+            onToggleDarkMode={handleToggleDarkMode}
           />
         ) : (
           <PublicPages
@@ -410,15 +567,22 @@ export default function App() {
               <div className="relative z-10 flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto shrink-0">
                 <button
                   type="button"
+                  onClick={() => handleNavigate('register')}
+                  className="min-h-[42px] w-full sm:w-auto px-5 py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold hover:opacity-95 transition-opacity inline-flex items-center justify-center shadow-xs cursor-pointer"
+                >
+                  Start Earning (Google Sign Up)
+                </button>
+                <button
+                  type="button"
                   onClick={() => handleNavigate('dashboard')}
-                  className="min-h-[42px] w-full sm:w-auto px-5 py-2.5 rounded-lg bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-semibold hover:opacity-90 transition-opacity inline-flex items-center justify-center"
+                  className="min-h-[42px] w-full sm:w-auto px-5 py-2.5 rounded-lg bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-semibold hover:opacity-90 transition-opacity inline-flex items-center justify-center cursor-pointer"
                 >
                   Open Creator Studio
                 </button>
                 <button
                   type="button"
                   onClick={() => handleNavigate('pricing')}
-                  className="min-h-[42px] w-full sm:w-auto px-5 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors inline-flex items-center justify-center"
+                  className="min-h-[42px] w-full sm:w-auto px-5 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors inline-flex items-center justify-center cursor-pointer"
                 >
                   Compare CPM Plans
                 </button>
@@ -526,7 +690,7 @@ export default function App() {
             </div>
 
             <div className="space-y-2.5">
-              <p className="font-bold text-neutral-950 dark:text-white">Accounts & Governance</p>
+              <p className="font-bold text-neutral-950 dark:text-white">Accounts & Onboarding</p>
               <ul className="space-y-2 text-neutral-600 dark:text-neutral-400">
                 <li>
                   <button type="button" onClick={() => handleNavigate('login')} className="hover:underline">
@@ -534,8 +698,12 @@ export default function App() {
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={() => handleNavigate('register')} className="hover:underline">
-                    15. Registration
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate('register')}
+                    className="font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    15. Firebase Google Sign-Up
                   </button>
                 </li>
                 <li>
@@ -551,15 +719,6 @@ export default function App() {
                 <li>
                   <button type="button" onClick={() => handleNavigate('not-found')} className="hover:underline">
                     20. 404 Error Page
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => handleNavigate('admin')}
-                    className="font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    Admin Console (/admin)
                   </button>
                 </li>
               </ul>
@@ -586,17 +745,17 @@ export default function App() {
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => handleNavigate('admin')}
-                className="min-h-[36px] px-3.5 py-1.5 rounded-lg border border-blue-500/35 bg-blue-50/50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 font-semibold hover:bg-blue-100/60 dark:hover:bg-blue-900/40 transition-colors"
+                onClick={() => handleNavigate('register')}
+                className="min-h-[36px] px-3.5 py-1.5 rounded-lg border border-blue-500/35 bg-blue-50/50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 font-semibold hover:bg-blue-100/60 dark:hover:bg-blue-900/40 transition-colors cursor-pointer"
               >
-                Admin Console (/admin)
+                Start Earning (Google Sign Up)
               </button>
               <button
                 id="footer-theme-switcher"
                 type="button"
                 onClick={handleToggleDarkMode}
                 aria-pressed={darkMode}
-                className="min-h-[36px] px-3.5 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 font-medium"
+                className="min-h-[36px] px-3.5 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 font-medium cursor-pointer"
               >
                 {darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               </button>

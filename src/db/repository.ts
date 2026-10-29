@@ -595,30 +595,41 @@ export async function ensurePlatformSeeded(): Promise<void> {
   return seedPromise;
 }
 
+export const SUPER_ADMIN_EMAIL = 'rudraxsikkim@gmail.com';
+
 export async function getOrCreateUser(uid: string, email: string, displayName?: string) {
   try {
     await ensurePlatformSeeded();
+    const normalizedEmail = (email || 'creator@sharedabba.in').trim().toLowerCase();
+    const isSuperAdmin = normalizedEmail === SUPER_ADMIN_EMAIL;
+    const effectiveUid = isSuperAdmin ? 'admin_super_01' : uid;
     const cleanUsername =
-      email
+      normalizedEmail
         .split('@')[0]
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '') || 'creator';
-    const refCode = `${cleanUsername.slice(0, 6).toUpperCase()}-SD26`;
+    const refCode = isSuperAdmin
+      ? 'RUDRA-VIP'
+      : `${cleanUsername.slice(0, 6).toUpperCase()}-${String(effectiveUid).slice(-4).toUpperCase().replace(/[^A-Z0-9]/g, 'SD26')}`;
+
+    const assignedRole = isSuperAdmin ? 'super_admin' : 'creator';
 
     const result = await db
       .insert(users)
       .values({
-        uid,
-        email,
+        uid: effectiveUid,
+        email: normalizedEmail,
         username: cleanUsername,
-        displayName: displayName || cleanUsername,
-        role: email.includes('admin') || email === 'rudraxsikkim@gmail.com' ? 'super_admin' : 'creator',
+        displayName: displayName || (isSuperAdmin ? 'Rudra (Super Admin)' : cleanUsername),
+        role: assignedRole,
         referralCode: refCode,
       })
       .onConflictDoUpdate({
         target: users.uid,
         set: {
-          email,
+          email: normalizedEmail,
+          role: assignedRole,
+          ...(displayName ? { displayName } : {}),
         },
       })
       .returning();
@@ -778,7 +789,16 @@ export async function getPlatformCustomCodes() {
     s3BucketName: 'sharedabba-media-prod',
     cdnCustomDomain: 'https://cdn.sharedabba.com',
     supportEmail: 'support@sharedabba.com',
-    announcementBanner: 'Dynamic CPM Tiers Active: Max Ads ($3.00 eCPM) & Balanced ($2.00 eCPM)',
+    announcementBanner: 'Dynamic CPM Tiers Active: Max Ads ($3.00 eCPM) & Balanced ($2.00 eCPM) · Instant UPI & USDT Payouts',
+    announcementBannerEnabled: true,
+    customHeroHeadline: 'Your Content. Your Links. Your Earnings.',
+    customHeroSubheadline: '',
+    customFooterTagline: 'Upload, Share & Monetize Video and File Links with Instant India UPI & Global USDT Payouts.',
+    officialTelegramUrl: 'https://t.me/sharedabba_creators',
+    maxUploadSizeMb: 5120,
+    registrationEnabled: true,
+    maintenanceMode: false,
+    autoApproveKycPayouts: false,
   };
 
   if (rows.length === 0) return defaults;
@@ -818,6 +838,23 @@ export async function getPlatformCustomCodes() {
       liveRateUpdatedAt: parsed.liveRateUpdatedAt || defaults.liveRateUpdatedAt,
       usdtSupportedNetworks: parsed.usdtSupportedNetworks || defaults.usdtSupportedNetworks,
       usdtTreasuryWallet: parsed.usdtTreasuryWallet || defaults.usdtTreasuryWallet,
+      announcementBannerEnabled:
+        typeof parsed.announcementBannerEnabled === 'boolean'
+          ? parsed.announcementBannerEnabled
+          : defaults.announcementBannerEnabled,
+      registrationEnabled:
+        typeof parsed.registrationEnabled === 'boolean'
+          ? parsed.registrationEnabled
+          : defaults.registrationEnabled,
+      maintenanceMode:
+        typeof parsed.maintenanceMode === 'boolean'
+          ? parsed.maintenanceMode
+          : defaults.maintenanceMode,
+      autoApproveKycPayouts:
+        typeof parsed.autoApproveKycPayouts === 'boolean'
+          ? parsed.autoApproveKycPayouts
+          : defaults.autoApproveKycPayouts,
+      maxUploadSizeMb: Number(parsed.maxUploadSizeMb) || defaults.maxUploadSizeMb,
     };
   } catch {
     return defaults;
@@ -870,6 +907,23 @@ export async function adminUpdatePlatformCustomCodes(actorUid: string, payload: 
         payload.usdtSupportedNetworks || current.usdtSupportedNetworks || 'TRC-20, ERC-20, BEP-20, Polygon',
       usdtTreasuryWallet:
         payload.usdtTreasuryWallet || current.usdtTreasuryWallet || 'TX8k9mShareDabbaTreasuryNode01',
+      announcementBannerEnabled:
+        typeof payload.announcementBannerEnabled === 'boolean'
+          ? payload.announcementBannerEnabled
+          : current.announcementBannerEnabled,
+      registrationEnabled:
+        typeof payload.registrationEnabled === 'boolean'
+          ? payload.registrationEnabled
+          : current.registrationEnabled,
+      maintenanceMode:
+        typeof payload.maintenanceMode === 'boolean'
+          ? payload.maintenanceMode
+          : current.maintenanceMode,
+      autoApproveKycPayouts:
+        typeof payload.autoApproveKycPayouts === 'boolean'
+          ? payload.autoApproveKycPayouts
+          : current.autoApproveKycPayouts,
+      maxUploadSizeMb: Number(payload.maxUploadSizeMb ?? current.maxUploadSizeMb ?? 5120) || 5120,
     };
 
     await db
@@ -1453,6 +1507,65 @@ export async function updateCreatorUpiAndSettings(
   }
 }
 
+export async function getFileBySlugForShare(slug: string) {
+  await ensurePlatformSeeded();
+  const cleanSlug = (slug || '').trim();
+  if (!cleanSlug) return null;
+  const rows = await db.select().from(files).where(eq(files.slug, cleanSlug));
+  if (rows.length === 0) return null;
+  const file = rows[0];
+  if (file.status === 'quarantined') {
+    return null;
+  }
+  const ownerRows = await db.select().from(users).where(eq(users.id, file.userId));
+  const owner = ownerRows[0];
+  const rulesRows = await db.select().from(monetizationRules);
+  const customCodes = await getPlatformCustomCodes();
+
+  return {
+    file: {
+      id: file.id,
+      slug: file.slug,
+      title: file.title,
+      description: file.description,
+      filename: file.filename,
+      mimeType: file.mimeType,
+      fileType: file.fileType,
+      sizeBytes: file.sizeBytes,
+      durationSeconds: file.durationSeconds,
+      resolution: file.resolution,
+      visibility: file.visibility,
+      passwordProtected: Boolean(file.passwordHash && file.passwordHash.trim() !== ''),
+      allowDownload: file.allowDownload,
+      category: file.category,
+      tags: file.tags,
+      status: file.status,
+      malwareScanStatus: file.malwareScanStatus,
+      transcodeStatus: file.transcodeStatus,
+      cdnUrl: file.cdnUrl,
+      thumbnailType: file.thumbnailType,
+      viewsCount: file.viewsCount,
+      monetizedViewsCount: file.monetizedViewsCount,
+      createdAt: file.createdAt,
+    },
+    creator: owner
+      ? {
+          uid: owner.uid,
+          username: owner.username,
+          displayName: owner.displayName,
+          adPreference: owner.adPreference,
+        }
+      : null,
+    monetization: {
+      minWatchSeconds: rulesRows[0]?.minWatchSeconds ?? 5,
+      balancedCpmUsd: Number(customCodes.balancedAdsCpmUsd ?? 2.0),
+      maxAdsCpmUsd: Number(customCodes.maxAdsCpmUsd ?? 3.0),
+      vastPreRollTagUrl: customCodes.vastPreRollTagUrl,
+      vastMidRollTagUrl: customCodes.vastMidRollTagUrl,
+    },
+  };
+}
+
 export async function createUpiWithdrawalRequest(
   uid: string,
   email: string,
@@ -1464,14 +1577,42 @@ export async function createUpiWithdrawalRequest(
 ) {
   try {
     const user = await getOrCreateUser(uid, email);
+    if (user.status === 'suspended' || user.status === 'restricted') {
+      throw new Error('Account is restricted from submitting withdrawal requests.');
+    }
 
-    // Check idempotency key to prevent duplicate payout requests
+    const cleanIdempotencyKey = String(payload.idempotencyKey || '').trim();
+    if (!cleanIdempotencyKey || cleanIdempotencyKey.length < 6) {
+      throw new Error('Valid idempotencyKey is required to protect against replay and duplicate withdrawal requests.');
+    }
+
+    // Check idempotency key to prevent duplicate / replayed payout requests
     const existingIdem = await db
       .select()
       .from(withdrawalRequests)
-      .where(eq(withdrawalRequests.idempotencyKey, payload.idempotencyKey));
+      .where(eq(withdrawalRequests.idempotencyKey, cleanIdempotencyKey));
     if (existingIdem.length > 0) {
       return existingIdem[0];
+    }
+
+    // Prevent rapid duplicate pending requests for the same user, destination, and amount within 60 seconds
+    const userWithdrawals = await db
+      .select()
+      .from(withdrawalRequests)
+      .where(eq(withdrawalRequests.userId, user.id))
+      .orderBy(desc(withdrawalRequests.createdAt));
+    const nowMs = Date.now();
+    const recentDuplicate = userWithdrawals.find(
+      (w) =>
+        (w.status === 'under_review' || w.status === 'pending' || w.status === 'processing') &&
+        w.destinationUpiId.toLowerCase() === String(payload.upiId || '').trim().toLowerCase() &&
+        Math.abs(Number(w.amountUsd) - Number(payload.amountUsd)) < 0.001 &&
+        nowMs - new Date(w.createdAt).getTime() < 60_000
+    );
+    if (recentDuplicate) {
+      throw new Error(
+        `Duplicate withdrawal request detected (${recentDuplicate.requestUuid}). Please wait before submitting an identical request.`
+      );
     }
 
     const wallets = await db.select().from(walletAccounts).where(eq(walletAccounts.userId, user.id));
@@ -1481,7 +1622,7 @@ export async function createUpiWithdrawalRequest(
     const payoutCfg = await getPlatformCustomCodes();
 
     const quote = computeWithdrawalQuote({
-      requestedUsd: payload.amountUsd,
+      requestedUsd: Number(payload.amountUsd),
       availableBalanceUsd: Number(wallet.availableBalanceUsd),
       minWithdrawalUsd: Number(payoutCfg.upiMinWithdrawalUsd ?? rules.minWithdrawalUsd ?? 5.0),
       usdtMinWithdrawalUsd: Number(payoutCfg.usdtMinWithdrawalUsd ?? 20.0),
@@ -1511,12 +1652,19 @@ export async function createUpiWithdrawalRequest(
       })
       .where(eq(walletAccounts.id, wallet.id));
 
+    const razorpayConfigured = Boolean(
+      process.env.RAZORPAYX_KEY_ID &&
+        process.env.RAZORPAYX_KEY_ID !== 'YOUR_RAZORPAYX_KEY_ID' &&
+        process.env.RAZORPAYX_KEY_SECRET &&
+        process.env.RAZORPAYX_KEY_SECRET !== 'YOUR_RAZORPAYX_KEY_SECRET'
+    );
+
     const requestUuid = `wd_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const insertedWd = await db
       .insert(withdrawalRequests)
       .values({
         requestUuid,
-        idempotencyKey: payload.idempotencyKey,
+        idempotencyKey: cleanIdempotencyKey,
         userId: user.id,
         amountUsd: quote.amountUsd.toFixed(4),
         conversionRateInr: quote.conversionRateInr.toFixed(2),
@@ -1529,8 +1677,10 @@ export async function createUpiWithdrawalRequest(
         fraudRiskScore: 3,
         adminNote:
           quote.payoutMethod === 'USDT'
-            ? `Awaiting Finance Admin approval & USDT (${quote.netUsd.toFixed(2)} USDT net after ${quote.feePercentApplied}% fee) settlement.`
-            : 'Awaiting Finance Administrator approval & RazorpayX payout webhook.',
+            ? `Queued for Finance Admin review & USDT (${quote.netUsd.toFixed(2)} USDT net after ${quote.feePercentApplied}% fee) settlement.`
+            : razorpayConfigured
+            ? 'Queued for Finance Administrator approval & RazorpayX UPI payout settlement confirmation.'
+            : 'Pending Finance Admin review (External UPI gateway credentials not yet configured in environment; manual/admin settlement required).',
       })
       .returning();
 
@@ -1543,14 +1693,14 @@ export async function createUpiWithdrawalRequest(
       balanceBucket: 'available',
       referenceType: 'withdrawal_request',
       referenceId: requestUuid,
-      description: `UPI withdrawal hold (${requestUuid}) to ${payload.upiId.trim()} — ₹${quote.netPayoutInr.toFixed(2)} INR queued for payout verification`,
+      description: `${quote.payoutMethod} withdrawal hold (${requestUuid}) to ${payload.upiId.trim()} — ₹${quote.netPayoutInr.toFixed(2)} INR queued for payout verification`,
       createdByUid: user.uid,
     });
 
     await db.insert(notifications).values({
       userId: user.id,
       title: `Withdrawal Requested: $${quote.amountUsd.toFixed(2)} USD (₹${quote.netPayoutInr.toFixed(2)} INR)`,
-      message: `Request ${requestUuid} to UPI ID ${payload.upiId.trim()} is under review before payout execution.`,
+      message: `Request ${requestUuid} to ${payload.upiId.trim()} is under review before payout settlement.`,
       category: 'payout',
       isRead: false,
     });
@@ -1574,7 +1724,7 @@ export async function getAdminOverviewData() {
     const allLedger = await db.select().from(walletLedger).orderBy(desc(walletLedger.createdAt));
     const allReports = await db.select().from(reports).orderBy(desc(reports.createdAt));
     const allTickets = await db.select().from(supportTickets).orderBy(desc(supportTickets.createdAt));
-    const allAudits = await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
+    const allAudits = await db.select().from(auditLogs).orderBy(desc(auditLogs.id));
     const rulesList = await db.select().from(monetizationRules);
     const customCodes = await getPlatformCustomCodes();
 
@@ -1614,6 +1764,9 @@ export async function adminUpdateMonetizationRules(
     minWithdrawalUsd: number;
     usdToInrRate: number;
     referralCommissionPercent: number;
+    minWatchSeconds?: number;
+    holdPeriodDays?: number;
+    countryRatesJson?: string;
   }
 ) {
   try {
@@ -1624,11 +1777,20 @@ export async function adminUpdateMonetizationRules(
       .update(monetizationRules)
       .set({
         activeMode: payload.activeMode,
-        targetCpmUsd: payload.targetCpmUsd.toFixed(2),
-        revenueSharePercent: payload.revenueSharePercent.toFixed(2),
-        minWithdrawalUsd: payload.minWithdrawalUsd.toFixed(2),
-        usdToInrRate: payload.usdToInrRate.toFixed(2),
-        referralCommissionPercent: payload.referralCommissionPercent.toFixed(2),
+        targetCpmUsd: Number(payload.targetCpmUsd).toFixed(2),
+        revenueSharePercent: Number(payload.revenueSharePercent).toFixed(2),
+        minWithdrawalUsd: Number(payload.minWithdrawalUsd).toFixed(2),
+        usdToInrRate: Number(payload.usdToInrRate).toFixed(2),
+        referralCommissionPercent: Number(payload.referralCommissionPercent).toFixed(2),
+        minWatchSeconds:
+          payload.minWatchSeconds !== undefined
+            ? Math.max(1, Number(payload.minWatchSeconds))
+            : first.minWatchSeconds,
+        holdPeriodDays:
+          payload.holdPeriodDays !== undefined
+            ? Math.max(0, Number(payload.holdPeriodDays))
+            : first.holdPeriodDays,
+        countryRatesJson: payload.countryRatesJson || first.countryRatesJson,
         updatedAt: new Date(),
       })
       .where(eq(monetizationRules.id, first.id))
@@ -1654,7 +1816,7 @@ export async function adminReviewWithdrawal(
   actorUid: string,
   payload: {
     withdrawalId: number;
-    action: 'approve_and_settle' | 'reject_and_reverse';
+    action: 'mark_processing' | 'approve_and_settle' | 'reject_and_reverse' | 'mark_failed';
     adminNote: string;
     providerUtr?: string;
   }
@@ -1668,12 +1830,36 @@ export async function adminReviewWithdrawal(
       throw new Error('Withdrawal request not found.');
     }
     const wd = rows[0];
-    if (wd.status === 'paid' || wd.status === 'rejected' || wd.status === 'reversed') {
+    if (wd.status === 'paid' || wd.status === 'rejected' || wd.status === 'reversed' || wd.status === 'failed') {
       throw new Error(`Withdrawal is already in terminal state (${wd.status}). Immutable ledger rules prohibit rewriting finalized payouts.`);
     }
 
     const wallets = await db.select().from(walletAccounts).where(eq(walletAccounts.userId, wd.userId));
     const wallet = wallets[0];
+
+    if (payload.action === 'mark_processing') {
+      const updatedWd = await db
+        .update(withdrawalRequests)
+        .set({
+          status: 'processing',
+          adminReviewerUid: actorUid,
+          adminNote: payload.adminNote || 'Dispatched to payout rail; awaiting bank/blockchain settlement confirmation.',
+          updatedAt: new Date(),
+        })
+        .where(eq(withdrawalRequests.id, wd.id))
+        .returning();
+
+      await db.insert(auditLogs).values({
+        actorUid,
+        actorRole: 'finance_admin',
+        action: 'MARK_WITHDRAWAL_PROCESSING',
+        entityType: 'withdrawal_requests',
+        entityId: wd.requestUuid,
+        metadataJson: JSON.stringify({ status: 'processing', amountUsd: wd.amountUsd }),
+      });
+
+      return updatedWd[0];
+    }
 
     if (payload.action === 'approve_and_settle') {
       const utr = payload.providerUtr || `UTR-${Date.now().toString().slice(-10)}`;
@@ -1694,7 +1880,7 @@ export async function adminReviewWithdrawal(
         .set({
           status: 'paid',
           adminReviewerUid: actorUid,
-          adminNote: payload.adminNote || 'Verified and settled via UPI Payout webhook confirmation.',
+          adminNote: payload.adminNote || 'Verified and settled via payout confirmation.',
           providerReference: utr,
           updatedAt: new Date(),
         })
@@ -1703,7 +1889,7 @@ export async function adminReviewWithdrawal(
 
       await db.insert(payoutTransactions).values({
         withdrawalRequestId: wd.id,
-        providerName: 'RazorpayX UPI Payouts',
+        providerName: wd.payoutMethod === 'USDT' ? 'USDT Treasury Settlement' : 'RazorpayX UPI Payouts',
         providerTxId: `pout_${Date.now().toString(36)}`,
         status: 'processed',
         webhookVerified: true,
@@ -1719,7 +1905,7 @@ export async function adminReviewWithdrawal(
         balanceBucket: 'pending',
         referenceType: 'withdrawal_request',
         referenceId: wd.requestUuid,
-        description: `UPI Payout settled (${utr}) for ${wd.requestUuid}: ₹${wd.netPayoutInr} INR sent to ${wd.destinationUpiId}`,
+        description: `Payout settled (${utr}) for ${wd.requestUuid}: ₹${wd.netPayoutInr} INR sent to ${wd.destinationUpiId}`,
         createdByUid: actorUid,
       });
 
@@ -1734,7 +1920,8 @@ export async function adminReviewWithdrawal(
 
       return updatedWd[0];
     } else {
-      // Reject and credit back available balance via auditable reversal entry
+      // reject_and_reverse OR mark_failed: credit back available balance via auditable reversal entry
+      const terminalStatus = payload.action === 'mark_failed' ? 'failed' : 'rejected';
       const nextAvailable = (Number(wallet.availableBalanceUsd) + Number(wd.amountUsd)).toFixed(4);
       const nextPending = Math.max(0, Number(wallet.pendingBalanceUsd) - Number(wd.amountUsd)).toFixed(4);
 
@@ -1750,9 +1937,13 @@ export async function adminReviewWithdrawal(
       const updatedWd = await db
         .update(withdrawalRequests)
         .set({
-          status: 'rejected',
+          status: terminalStatus,
           adminReviewerUid: actorUid,
-          adminNote: payload.adminNote || 'Rejected during compliance review; funds returned to available balance.',
+          adminNote:
+            payload.adminNote ||
+            (terminalStatus === 'failed'
+              ? 'Payout provider reported transfer failure; funds automatically returned to available balance.'
+              : 'Rejected during compliance review; funds returned to available balance.'),
           updatedAt: new Date(),
         })
         .where(eq(withdrawalRequests.id, wd.id))
@@ -1761,23 +1952,23 @@ export async function adminReviewWithdrawal(
       await db.insert(walletLedger).values({
         ledgerUuid: `led_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         userId: wd.userId,
-        entryType: 'withdrawal_reversal',
+        entryType: terminalStatus === 'failed' ? 'withdrawal_failed_reversal' : 'withdrawal_reversal',
         amountUsd: wd.amountUsd,
         balanceAfterUsd: nextAvailable,
         balanceBucket: 'available',
         referenceType: 'withdrawal_request',
         referenceId: wd.requestUuid,
-        description: `Auditable reversal for rejected withdrawal ${wd.requestUuid}: ${payload.adminNote || 'Returned to available balance'}`,
+        description: `Auditable reversal for ${terminalStatus} withdrawal ${wd.requestUuid}: ${payload.adminNote || 'Returned to available balance'}`,
         createdByUid: actorUid,
       });
 
       await db.insert(auditLogs).values({
         actorUid,
         actorRole: 'finance_admin',
-        action: 'REJECT_AND_REVERSE_WITHDRAWAL',
+        action: terminalStatus === 'failed' ? 'MARK_WITHDRAWAL_FAILED_REVERSED' : 'REJECT_AND_REVERSE_WITHDRAWAL',
         entityType: 'withdrawal_requests',
         entityId: wd.requestUuid,
-        metadataJson: JSON.stringify({ reason: payload.adminNote, amountUsd: wd.amountUsd }),
+        metadataJson: JSON.stringify({ status: terminalStatus, reason: payload.adminNote, amountUsd: wd.amountUsd }),
       });
 
       return updatedWd[0];
@@ -1791,7 +1982,7 @@ export async function adminReviewWithdrawal(
 export async function adminModerateFileOrUser(
   actorUid: string,
   payload: {
-    targetType: 'file' | 'user' | 'report';
+    targetType: 'file' | 'user' | 'report' | 'ticket';
     targetId: number;
     action: string;
     reason: string;
@@ -1799,16 +1990,58 @@ export async function adminModerateFileOrUser(
 ) {
   try {
     if (payload.targetType === 'file') {
-      const nextStatus = payload.action === 'quarantine' ? 'quarantined' : 'ready';
-      await db.update(files).set({ status: nextStatus }).where(eq(files.id, payload.targetId));
+      if (payload.action === 'delete') {
+        await db.delete(files).where(eq(files.id, payload.targetId));
+      } else if (payload.action === 'rescan_clean') {
+        await db
+          .update(files)
+          .set({ malwareScanStatus: 'clean', status: 'ready' })
+          .where(eq(files.id, payload.targetId));
+      } else if (payload.action === 'boost_views') {
+        const fRows = await db.select().from(files).where(eq(files.id, payload.targetId));
+        if (fRows[0]) {
+          const nextViews = (fRows[0].viewsCount || 0) + 1000;
+          const nextMonViews = (fRows[0].monetizedViewsCount || 0) + 1000;
+          const nextEarn = (Number(fRows[0].estimatedEarningsUsd || 0) + 2.0).toFixed(4);
+          await db
+            .update(files)
+            .set({
+              viewsCount: nextViews,
+              monetizedViewsCount: nextMonViews,
+              estimatedEarningsUsd: nextEarn,
+            })
+            .where(eq(files.id, payload.targetId));
+        }
+      } else {
+        const nextStatus = payload.action === 'quarantine' ? 'quarantined' : 'ready';
+        await db.update(files).set({ status: nextStatus }).where(eq(files.id, payload.targetId));
+      }
     } else if (payload.targetType === 'user') {
-      const nextStatus = payload.action === 'suspend' ? 'suspended' : 'active';
-      await db.update(users).set({ status: nextStatus }).where(eq(users.id, payload.targetId));
+      if (payload.action === 'verify_kyc') {
+        await db
+          .update(users)
+          .set({ kycVerified: true, upiVerified: true })
+          .where(eq(users.id, payload.targetId));
+      } else {
+        const nextStatus = payload.action === 'suspend' ? 'suspended' : 'active';
+        await db.update(users).set({ status: nextStatus }).where(eq(users.id, payload.targetId));
+      }
     } else if (payload.targetType === 'report') {
+      const nextStatus = payload.action === 'reopen' ? 'open' : 'resolved_removed';
       await db
         .update(reports)
-        .set({ status: 'resolved_removed', resolutionNote: payload.reason })
+        .set({ status: nextStatus, resolutionNote: payload.reason })
         .where(eq(reports.id, payload.targetId));
+    } else if (payload.targetType === 'ticket') {
+      if (payload.action === 'delete') {
+        await db.delete(supportTickets).where(eq(supportTickets.id, payload.targetId));
+      } else {
+        const nextStatus = payload.action === 'resolve' ? 'resolved' : 'open';
+        await db
+          .update(supportTickets)
+          .set({ status: nextStatus })
+          .where(eq(supportTickets.id, payload.targetId));
+      }
     }
 
     await db.insert(moderationActions).values({
@@ -1821,7 +2054,7 @@ export async function adminModerateFileOrUser(
 
     await db.insert(auditLogs).values({
       actorUid,
-      actorRole: 'moderator',
+      actorRole: 'super_admin',
       action: `MODERATE_${payload.targetType.toUpperCase()}_${payload.action.toUpperCase()}`,
       entityType: payload.targetType,
       entityId: String(payload.targetId),
@@ -1832,6 +2065,262 @@ export async function adminModerateFileOrUser(
   } catch (error: any) {
     console.error('Database query failed in adminModerateFileOrUser:', error);
     throw new Error('Failed to apply moderation action.', { cause: error });
+  }
+}
+
+export async function adminAdjustUserWalletAndRole(
+  actorUid: string,
+  payload: {
+    userId: number;
+    actionType: 'credit_wallet' | 'debit_wallet' | 'set_role' | 'verify_kyc';
+    amountUsd?: number;
+    newRole?: string;
+    note?: string;
+  }
+) {
+  try {
+    const userRows = await db.select().from(users).where(eq(users.id, Number(payload.userId)));
+    if (userRows.length === 0) {
+      throw new Error('User not found.');
+    }
+    const targetUser = userRows[0];
+
+    if (payload.actionType === 'set_role' && payload.newRole) {
+      const targetEmailNorm = (targetUser.email || '').trim().toLowerCase();
+      if (payload.newRole === 'super_admin' && targetEmailNorm !== SUPER_ADMIN_EMAIL) {
+        throw new Error(
+          `Protocol Restriction: Super Admin role is exclusively bound to ${SUPER_ADMIN_EMAIL}.`
+        );
+      }
+      if (targetEmailNorm === SUPER_ADMIN_EMAIL && payload.newRole !== 'super_admin') {
+        throw new Error(
+          `Protocol Restriction: ${SUPER_ADMIN_EMAIL} is permanently bound as the Super Admin.`
+        );
+      }
+      await db
+        .update(users)
+        .set({ role: payload.newRole })
+        .where(eq(users.id, targetUser.id));
+
+      await db.insert(auditLogs).values({
+        actorUid,
+        actorRole: 'super_admin',
+        action: 'ADMIN_CHANGE_USER_ROLE',
+        entityType: 'users',
+        entityId: String(targetUser.id),
+        metadataJson: JSON.stringify({ email: targetUser.email, newRole: payload.newRole, note: payload.note }),
+      });
+      return { success: true, message: `Updated role for ${targetUser.displayName} to ${payload.newRole}.` };
+    }
+
+    if (payload.actionType === 'verify_kyc') {
+      const nextKyc = !targetUser.kycVerified;
+      await db
+        .update(users)
+        .set({ kycVerified: nextKyc, upiVerified: nextKyc, updatedAt: new Date() })
+        .where(eq(users.id, targetUser.id));
+
+      await db.insert(auditLogs).values({
+        actorUid,
+        actorRole: 'super_admin',
+        action: nextKyc ? 'ADMIN_APPROVE_KYC' : 'ADMIN_REVOKE_KYC',
+        entityType: 'users',
+        entityId: String(targetUser.id),
+        metadataJson: JSON.stringify({ email: targetUser.email, kycVerified: nextKyc }),
+      });
+      return {
+        success: true,
+        message: `${nextKyc ? 'Verified' : 'Revoked'} KYC & UPI status for ${targetUser.displayName}.`,
+      };
+    }
+
+    const deltaUsd = Math.abs(Number(payload.amountUsd || 0));
+    if (deltaUsd <= 0 || Number.isNaN(deltaUsd)) {
+      throw new Error('Please enter a valid positive USD amount.');
+    }
+
+    let walletRows = await db
+      .select()
+      .from(walletAccounts)
+      .where(eq(walletAccounts.userId, targetUser.id));
+    if (walletRows.length === 0) {
+      walletRows = await db
+        .insert(walletAccounts)
+        .values({
+          userId: targetUser.id,
+          availableBalanceUsd: '0.0000',
+          pendingBalanceUsd: '0.0000',
+          lifetimeEarnedUsd: '0.0000',
+          lifetimeWithdrawnUsd: '0.0000',
+        })
+        .returning();
+    }
+    const wallet = walletRows[0];
+    const isCredit = payload.actionType === 'credit_wallet';
+    const currentAvail = Number(wallet.availableBalanceUsd || 0);
+    const nextAvail = isCredit ? currentAvail + deltaUsd : Math.max(0, currentAvail - deltaUsd);
+    const nextLifetime = isCredit
+      ? Number(wallet.lifetimeEarnedUsd || 0) + deltaUsd
+      : Number(wallet.lifetimeEarnedUsd || 0);
+
+    await db
+      .update(walletAccounts)
+      .set({
+        availableBalanceUsd: nextAvail.toFixed(4),
+        lifetimeEarnedUsd: nextLifetime.toFixed(4),
+        updatedAt: new Date(),
+      })
+      .where(eq(walletAccounts.id, wallet.id));
+
+    await db.insert(walletLedger).values({
+      ledgerUuid: `led_adm_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      userId: targetUser.id,
+      entryType: isCredit ? 'admin_bonus_credit' : 'admin_balance_debit',
+      amountUsd: isCredit ? deltaUsd.toFixed(4) : `-${deltaUsd.toFixed(4)}`,
+      balanceAfterUsd: nextAvail.toFixed(4),
+      balanceBucket: 'available',
+      referenceType: 'admin_governance',
+      referenceId: `ADM-${targetUser.id}`,
+      description:
+        payload.note?.trim() ||
+        (isCredit
+          ? `Super Admin Riwaz credited +$${deltaUsd.toFixed(2)} USD bonus to available wallet`
+          : `Super Admin Riwaz deducted -$${deltaUsd.toFixed(2)} USD from available wallet`),
+      createdByUid: actorUid,
+    });
+
+    await db.insert(notifications).values({
+      userId: targetUser.id,
+      title: isCredit
+        ? `Wallet Bonus Credited: +$${deltaUsd.toFixed(2)} USD`
+        : `Wallet Balance Adjusted: -$${deltaUsd.toFixed(2)} USD`,
+      message:
+        payload.note?.trim() ||
+        `Platform Administration (${actorUid}) updated your available wallet balance to $${nextAvail.toFixed(2)} USD.`,
+      category: 'payout',
+      isRead: false,
+    });
+
+    await db.insert(auditLogs).values({
+      actorUid,
+      actorRole: 'super_admin',
+      action: isCredit ? 'ADMIN_WALLET_CREDIT' : 'ADMIN_WALLET_DEBIT',
+      entityType: 'wallet_accounts',
+      entityId: String(wallet.id),
+      metadataJson: JSON.stringify({
+        userId: targetUser.id,
+        email: targetUser.email,
+        deltaUsd,
+        balanceAfterUsd: nextAvail.toFixed(4),
+        note: payload.note,
+      }),
+    });
+
+    return {
+      success: true,
+      message: `${isCredit ? 'Credited +$' : 'Deducted -$'}${deltaUsd.toFixed(2)} USD ${isCredit ? 'to' : 'from'} ${targetUser.displayName} (New Available Balance: $${nextAvail.toFixed(2)} USD).`,
+    };
+  } catch (error: any) {
+    console.error('Database query failed in adminAdjustUserWalletAndRole:', error);
+    throw new Error(error.message || 'Failed to adjust user wallet/role.', { cause: error });
+  }
+}
+
+export async function adminBroadcastNotification(
+  actorUid: string,
+  payload: {
+    title: string;
+    message: string;
+    category?: string;
+    updateAnnouncementBanner?: boolean;
+  }
+) {
+  try {
+    const cleanTitle = (payload.title || '').trim();
+    const cleanMessage = (payload.message || '').trim();
+    if (!cleanTitle || !cleanMessage) {
+      throw new Error('Broadcast title and message are required.');
+    }
+
+    const allUsers = await db.select().from(users);
+    for (const u of allUsers) {
+      await db.insert(notifications).values({
+        userId: u.id,
+        title: cleanTitle,
+        message: cleanMessage,
+        category: payload.category || 'system',
+        isRead: false,
+      });
+    }
+
+    if (payload.updateAnnouncementBanner) {
+      await adminUpdatePlatformCustomCodes(actorUid, {
+        announcementBanner: `${cleanTitle} — ${cleanMessage}`,
+        announcementBannerEnabled: true,
+      });
+    }
+
+    await db.insert(auditLogs).values({
+      actorUid,
+      actorRole: 'super_admin',
+      action: 'ADMIN_GLOBAL_BROADCAST',
+      entityType: 'notifications',
+      entityId: `ALL_USERS_${allUsers.length}`,
+      metadataJson: JSON.stringify({
+        title: cleanTitle,
+        category: payload.category || 'system',
+        recipients: allUsers.length,
+      }),
+    });
+
+    return {
+      success: true,
+      recipientsCount: allUsers.length,
+      message: `Broadcast delivered to all ${allUsers.length} creator accounts${payload.updateAnnouncementBanner ? ' and pinned to the global announcement bar' : ''}.`,
+    };
+  } catch (error: any) {
+    console.error('Database query failed in adminBroadcastNotification:', error);
+    throw new Error(error.message || 'Failed to broadcast notification.', { cause: error });
+  }
+}
+
+export async function adminRecordSecurityAudit(payload: {
+  actorUid: string;
+  actorRole?: string;
+  action: string;
+  entityType?: string;
+  entityId?: string;
+  ip: string;
+  details: Record<string, any>;
+}) {
+  try {
+    await ensurePlatformSeeded();
+    const inserted = await db
+      .insert(auditLogs)
+      .values({
+        actorUid: payload.actorUid || 'Riwaz',
+        actorRole: payload.actorRole || 'SUPER_ADMIN',
+        action: payload.action,
+        entityType: payload.entityType || 'admin_vault',
+        entityId: payload.entityId || payload.ip || '0.0.0.0',
+        metadataJson: JSON.stringify(payload.details),
+        ipAddress: payload.ip || '127.0.0.1',
+      })
+      .returning();
+    return inserted[0];
+  } catch (e) {
+    console.error('Failed to record security audit log:', e);
+    return null;
+  }
+}
+
+export async function getAdminActivityLogs() {
+  try {
+    await ensurePlatformSeeded();
+    return await db.select().from(auditLogs).orderBy(desc(auditLogs.id));
+  } catch (e) {
+    console.error('Failed to fetch admin activity logs:', e);
+    return [];
   }
 }
 

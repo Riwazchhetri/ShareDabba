@@ -46,6 +46,7 @@ export type AdminSection =
   | 'finance'
   | 'advertising'
   | 'site-config'
+  | 'activity-logs'
   | 'security-audit';
 
 export interface UserRecord {
@@ -191,6 +192,16 @@ export interface PlatformCustomCodesConfig {
   cdnCustomDomain: string;
   supportEmail: string;
   announcementBanner: string;
+  announcementBannerEnabled?: boolean;
+  customHeroHeadline?: string;
+  customHeroSubheadline?: string;
+  customFooterTagline?: string;
+  officialTelegramUrl?: string;
+  maxUploadSizeMb?: number;
+  registrationEnabled?: boolean;
+  maintenanceMode?: boolean;
+  autoApproveKycPayouts?: boolean;
 }
+
 
 

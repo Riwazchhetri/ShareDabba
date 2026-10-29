@@ -1896,7 +1896,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                       <span>
                         {submittingWithdraw
                           ? 'Submitting with Idempotency Key...'
-                          : 'Submit Instant UPI / USDT Withdrawal Request'}
+                          : 'Submit Verified UPI / USDT Withdrawal Request'}
                       </span>
                     </button>
                   </form>
@@ -1905,16 +1905,16 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                 {/* Right Column: Payout Compliance & States Guide */}
                 <div className="lg:col-span-5 p-6 rounded-xl border border-neutral-200 dark:border-neutral-800 space-y-4 text-xs">
                   <h3 className="text-sm font-bold text-neutral-950 dark:text-white">
-                    UPI & USDT Payout Lifecycle & Verification Rules
+                    UPI & USDT Payout Lifecycle & Settlement Verification Rules
                   </h3>
                   <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                    ShareDabba supports both Lightning India UPI (INR) and Global USDT (TRC-20 / ERC-20) stablecoin withdrawals. Every request transitions through strict auditable states:
+                    ShareDabba supports India UPI (INR) and Global USDT (TRC-20 / ERC-20) withdrawals. Payouts are never marked Paid until the payment provider or Finance Admin confirms bank UTR / blockchain settlement:
                   </p>
                   <div className="space-y-2 font-mono text-[11px] text-neutral-600 dark:text-neutral-400">
-                    <p>1. REQUESTED / UNDER_REVIEW — Balance placed in pending hold</p>
-                    <p>2. APPROVED / PROCESSING — Dispatched to UPI IMPS rail or USDT TRC-20/ERC-20 node</p>
-                    <p>3. PAID — Confirmed with bank UTR or blockchain TxHash reference</p>
-                    <p>4. REJECTED / REVERSED — Funds returned to available balance via auditable reversal entry</p>
+                    <p>1. PENDING / UNDER_REVIEW — Server-side balance verified & placed in hold</p>
+                    <p>2. PROCESSING — Dispatched to UPI IMPS gateway or USDT node awaiting confirmation</p>
+                    <p>3. PAID — Confirmed with verified Bank UTR or blockchain TxHash reference</p>
+                    <p>4. REJECTED / FAILED — Funds automatically reversed to available balance via immutable ledger entry</p>
                   </div>
                 </div>
               </div>
