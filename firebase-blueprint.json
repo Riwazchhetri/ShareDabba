@@ -1,0 +1,285 @@
+{
+  "entities": {
+    "CreatorProfile": {
+      "title": "CreatorProfile",
+      "description": "Public creator profile metadata without PII.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the creator",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "description": "Public handle of the creator",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display studio name of the creator",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "adPreference": {
+          "type": "string",
+          "description": "Selected dynamic CPM ad load preference",
+          "enum": ["more", "balanced"]
+        },
+        "plan": {
+          "type": "string",
+          "description": "Active creator tier",
+          "enum": ["free", "creator", "pro"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of profile creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last profile update"
+        }
+      },
+      "required": ["userId", "username", "displayName", "adPreference", "plan", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII and payout destination configuration accessible only to the owner or admin.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified account email address",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "upiId": {
+          "type": "string",
+          "description": "Verified India UPI VPA or Global USDT wallet address",
+          "minLength": 3,
+          "maxLength": 128
+        },
+        "upiVerified": {
+          "type": "boolean",
+          "description": "Whether payout destination is verified"
+        },
+        "kycVerified": {
+          "type": "boolean",
+          "description": "Whether KYC identity verification is completed"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of record creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update"
+        }
+      },
+      "required": ["userId", "email", "upiId", "upiVerified", "kycVerified", "createdAt", "updatedAt"]
+    },
+    "SharedLink": {
+      "title": "SharedLink",
+      "description": "Real-time monetized file or video link record.",
+      "type": "object",
+      "properties": {
+        "linkId": {
+          "type": "string",
+          "description": "Unique link document identifier",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Creator UID who owns the shared file",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "slug": {
+          "type": "string",
+          "description": "Public short slug for sharing",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the hosted video or archive",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "category": {
+          "type": "string",
+          "description": "Content category",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Access visibility state",
+          "enum": ["public", "unlisted", "private"]
+        },
+        "adTier": {
+          "type": "string",
+          "description": "Monetization tier applied to this link",
+          "enum": ["more", "balanced", "reduced"]
+        },
+        "viewsCount": {
+          "type": "number",
+          "description": "Total verified views count"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp"
+        }
+      },
+      "required": ["linkId", "ownerId", "slug", "title", "category", "visibility", "adTier", "viewsCount", "createdAt", "updatedAt"]
+    },
+    "PayoutConfig": {
+      "title": "PayoutConfig",
+      "description": "Global UPI and USDT payout configuration and dynamic CPM tiers.",
+      "type": "object",
+      "properties": {
+        "configId": {
+          "type": "string",
+          "description": "Configuration document identifier",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "updatedByUid": {
+          "type": "string",
+          "description": "Admin UID who updated the configuration",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "upiPayoutEnabled": {
+          "type": "boolean",
+          "description": "Real-time availability of India UPI payouts"
+        },
+        "usdtPayoutEnabled": {
+          "type": "boolean",
+          "description": "Real-time availability of Global USDT payouts"
+        },
+        "upiMinWithdrawalUsd": {
+          "type": "number",
+          "description": "Minimum withdrawal threshold in USD for UPI ($5 default)"
+        },
+        "usdtMinWithdrawalUsd": {
+          "type": "number",
+          "description": "Minimum withdrawal threshold in USD for USDT ($20 default)"
+        },
+        "upiFeePercent": {
+          "type": "number",
+          "description": "Processing fee percentage for UPI withdrawals"
+        },
+        "usdtFeePercent": {
+          "type": "number",
+          "description": "Processing fee percentage for global USDT withdrawals"
+        },
+        "maxAdsCpmUsd": {
+          "type": "number",
+          "description": "Target eCPM in USD for Max Ads plan ($3.00 default)"
+        },
+        "balancedAdsCpmUsd": {
+          "type": "number",
+          "description": "Target eCPM in USD for Balanced plan ($2.00 default)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp"
+        }
+      },
+      "required": [
+        "configId",
+        "updatedByUid",
+        "upiPayoutEnabled",
+        "usdtPayoutEnabled",
+        "upiMinWithdrawalUsd",
+        "usdtMinWithdrawalUsd",
+        "upiFeePercent",
+        "usdtFeePercent",
+        "maxAdsCpmUsd",
+        "balancedAdsCpmUsd",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdminRoleDoc": {
+      "title": "AdminRoleDoc",
+      "description": "Trusted administrator membership document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Admin Firebase Auth UID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["super_admin", "finance_admin"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "role", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/creatorProfiles/{userId}": {
+      "schema": { "$ref": "#/entities/CreatorProfile" },
+      "description": "Public creator profiles without PII."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Isolated PII and UPI/USDT payout wallet records."
+    },
+    "/sharedLinks/{linkId}": {
+      "schema": { "$ref": "#/entities/SharedLink" },
+      "description": "Real-time monetized file and video link metadata."
+    },
+    "/payoutConfigs/{configId}": {
+      "schema": { "$ref": "#/entities/PayoutConfig" },
+      "description": "Real-time UPI ($5 min) and USDT ($20 min) payout configuration."
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRoleDoc" },
+      "description": "Trusted administrator registry for Zero-Trust RBAC."
+    }
+  }
+}

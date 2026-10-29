@@ -1,0 +1,255 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. GLOBAL DEFAULT-DENY SAFETY NET
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. HARDENED PRIMITIVE HELPERS
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'rudraxsikkim@gmail.com'
+      );
+    }
+
+    // 3. VALIDATION BLUEPRINTS (ANTI-UPDATE-GAP)
+    function isValidCreatorProfile(data) {
+      return data.keys().hasAll(['userId', 'username', 'displayName', 'adPreference', 'plan', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['userId', 'username', 'displayName', 'adPreference', 'plan', 'createdAt', 'updatedAt']) &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.username is string && data.username.size() >= 2 && data.username.size() <= 64 && data.username.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120 &&
+        data.adPreference is string && (data.adPreference == 'more' || data.adPreference == 'balanced') &&
+        data.plan is string && (data.plan == 'free' || data.plan == 'creator' || data.plan == 'pro') &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data) {
+      return data.keys().hasAll(['userId', 'email', 'upiId', 'upiVerified', 'kycVerified', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['userId', 'email', 'upiId', 'upiVerified', 'kycVerified', 'createdAt', 'updatedAt']) &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 254 &&
+        data.upiId is string && data.upiId.size() >= 3 && data.upiId.size() <= 128 &&
+        data.upiVerified is bool &&
+        data.kycVerified is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSharedLink(data) {
+      return data.keys().hasAll(['linkId', 'ownerId', 'slug', 'title', 'category', 'visibility', 'adTier', 'viewsCount', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['linkId', 'ownerId', 'slug', 'title', 'category', 'visibility', 'adTier', 'viewsCount', 'createdAt', 'updatedAt']) &&
+        data.linkId is string && data.linkId.size() >= 1 && data.linkId.size() <= 128 && data.linkId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 128 && data.slug.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 80 &&
+        data.visibility is string && (data.visibility == 'public' || data.visibility == 'unlisted' || data.visibility == 'private') &&
+        data.adTier is string && (data.adTier == 'more' || data.adTier == 'balanced') &&
+        data.viewsCount is int && data.viewsCount >= 0 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPayoutConfig(data) {
+      return data.keys().hasAll([
+          'configId',
+          'updatedByUid',
+          'upiPayoutEnabled',
+          'usdtPayoutEnabled',
+          'upiMinWithdrawalUsd',
+          'usdtMinWithdrawalUsd',
+          'upiFeePercent',
+          'usdtFeePercent',
+          'maxAdsCpmUsd',
+          'balancedAdsCpmUsd',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'configId',
+          'updatedByUid',
+          'upiPayoutEnabled',
+          'usdtPayoutEnabled',
+          'upiMinWithdrawalUsd',
+          'usdtMinWithdrawalUsd',
+          'upiFeePercent',
+          'usdtFeePercent',
+          'maxAdsCpmUsd',
+          'balancedAdsCpmUsd',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.configId is string && data.configId.size() >= 1 && data.configId.size() <= 128 && data.configId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.updatedByUid is string && data.updatedByUid.size() >= 1 && data.updatedByUid.size() <= 128 && data.updatedByUid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.upiPayoutEnabled is bool &&
+        data.usdtPayoutEnabled is bool &&
+        (data.upiMinWithdrawalUsd is int || data.upiMinWithdrawalUsd is float) && data.upiMinWithdrawalUsd >= 1 && data.upiMinWithdrawalUsd <= 10000 &&
+        (data.usdtMinWithdrawalUsd is int || data.usdtMinWithdrawalUsd is float) && data.usdtMinWithdrawalUsd >= 5 && data.usdtMinWithdrawalUsd <= 50000 &&
+        (data.upiFeePercent is int || data.upiFeePercent is float) && data.upiFeePercent >= 0 && data.upiFeePercent <= 25 &&
+        (data.usdtFeePercent is int || data.usdtFeePercent is float) && data.usdtFeePercent >= 0 && data.usdtFeePercent <= 25 &&
+        (data.maxAdsCpmUsd is int || data.maxAdsCpmUsd is float) && data.maxAdsCpmUsd >= 0.1 && data.maxAdsCpmUsd <= 100 &&
+        (data.balancedAdsCpmUsd is int || data.balancedAdsCpmUsd is float) && data.balancedAdsCpmUsd >= 0.1 && data.balancedAdsCpmUsd <= 100 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRoleDoc(data) {
+      return data.keys().hasAll(['uid', 'role', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'role', 'createdAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.role is string && (data.role == 'super_admin' || data.role == 'finance_admin') &&
+        data.createdAt is timestamp;
+    }
+
+    // 4. COLLECTION RULES
+    match /creatorProfiles/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if existing().plan in ['free', 'creator', 'pro'];
+      allow create: if isOwner(userId) &&
+        isValidId(userId) &&
+        isValidCreatorProfile(incoming()) &&
+        incoming().userId == request.auth.uid &&
+        incoming().userId == userId &&
+        incoming().plan == 'free' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidCreatorProfile(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          (isOwner(userId) &&
+            incoming().plan == existing().plan &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'adPreference', 'updatedAt'])) ||
+          isAdmin()
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /users/{userId}/private/{docId} {
+      allow get: if isValidId(userId) && isValidId(docId) && (isOwner(userId) || isAdmin());
+      allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+      allow create: if isOwner(userId) &&
+        isValidId(userId) &&
+        isValidId(docId) &&
+        isValidUserPrivateInfo(incoming()) &&
+        incoming().userId == request.auth.uid &&
+        incoming().userId == userId &&
+        incoming().kycVerified == false &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/creatorProfiles/$(userId));
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidId(docId) &&
+        isValidUserPrivateInfo(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/creatorProfiles/$(userId)) && (
+          (isOwner(userId) &&
+            incoming().kycVerified == existing().kycVerified &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['upiId', 'upiVerified', 'updatedAt'])) ||
+          isAdmin()
+        );
+      allow delete: if isValidId(userId) && isValidId(docId) && isAdmin();
+    }
+
+    match /sharedLinks/{linkId} {
+      allow get: if isValidId(linkId) && (
+        existing().visibility == 'public' ||
+        existing().visibility == 'unlisted' ||
+        (isVerifiedUser() && existing().ownerId == request.auth.uid) ||
+        isAdmin()
+      );
+      allow list: if existing().visibility == 'public' ||
+        (isVerifiedUser() && existing().ownerId == request.auth.uid);
+      allow create: if isVerifiedUser() &&
+        isValidId(linkId) &&
+        isValidSharedLink(incoming()) &&
+        incoming().linkId == linkId &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().viewsCount == 0 &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/creatorProfiles/$(request.auth.uid));
+      allow update: if isVerifiedUser() &&
+        isValidId(linkId) &&
+        isValidSharedLink(incoming()) &&
+        incoming().linkId == existing().linkId &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          (existing().ownerId == request.auth.uid &&
+            incoming().viewsCount == existing().viewsCount &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'visibility', 'adTier', 'updatedAt'])) ||
+          isAdmin()
+        );
+      allow delete: if isValidId(linkId) && (
+        (isVerifiedUser() && existing().ownerId == request.auth.uid) ||
+        isAdmin()
+      );
+    }
+
+    match /payoutConfigs/{configId} {
+      allow get: if isValidId(configId);
+      allow list: if existing().configId == 'global';
+      allow create: if isAdmin() &&
+        isValidId(configId) &&
+        isValidPayoutConfig(incoming()) &&
+        incoming().configId == configId &&
+        incoming().updatedByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isAdmin() &&
+        isValidId(configId) &&
+        isValidPayoutConfig(incoming()) &&
+        incoming().configId == existing().configId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedByUid == request.auth.uid &&
+        incoming().updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow list: if false;
+      allow create: if isAdmin() &&
+        isValidId(adminId) &&
+        isValidAdminRoleDoc(incoming()) &&
+        incoming().uid == adminId &&
+        incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+  }
+}

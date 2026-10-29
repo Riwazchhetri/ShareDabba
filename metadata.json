@@ -1,0 +1,6 @@
+{
+  "name": "ShareDabba",
+  "description": "Upload. Share. Earn. Modern video and file hosting platform where creators share monetized links, track CPM analytics, and withdraw earnings via UPI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
