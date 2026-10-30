@@ -77,7 +77,7 @@ const InrCurrencyNoteBadge: React.FC<{
   altAnim?: boolean;
 }> = ({ amountLabel = '₹', className = '', altAnim = false }) => (
   <span
-    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-emerald-500/40 bg-gradient-to-r from-emerald-500/15 via-amber-500/10 to-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-mono text-[11px] font-bold shadow-xs ${
+    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-sky-400/45 bg-gradient-to-r from-sky-500/15 via-blue-500/10 to-sky-500/15 text-blue-700 dark:text-sky-300 font-mono text-[11px] font-bold shadow-xs ${
       altAnim ? 'inr-note-anim-alt' : 'inr-note-anim'
     } ${className}`}
   >
@@ -88,7 +88,7 @@ const InrCurrencyNoteBadge: React.FC<{
         width="26"
         height="18"
         rx="3"
-        className="fill-emerald-600/20 stroke-emerald-600 dark:stroke-emerald-400"
+        className="fill-sky-500/20 stroke-blue-600 dark:stroke-sky-400"
         strokeWidth="1.5"
       />
       <rect
@@ -97,11 +97,11 @@ const InrCurrencyNoteBadge: React.FC<{
         width="21"
         height="13"
         rx="1.5"
-        className="stroke-amber-500/60"
+        className="stroke-sky-400/70"
         strokeWidth="1"
         strokeDasharray="2 1.5"
       />
-      <circle cx="14" cy="10" r="4.2" className="fill-emerald-600 dark:fill-emerald-400" />
+      <circle cx="14" cy="10" r="4.2" className="fill-blue-600 dark:fill-sky-400" />
       <text
         x="14"
         y="13"
@@ -119,7 +119,6 @@ const InrCurrencyNoteBadge: React.FC<{
 );
 
 interface CreatorFaqAccordionProps {
-  balancedCpm: number;
   maxAdsCpm: number;
   inrRate: number;
   usdtInrRate: number;
@@ -127,11 +126,9 @@ interface CreatorFaqAccordionProps {
   usdtMinUsd: number;
   minWatchSeconds: number;
   onNavigate: (route: PageRoute) => void;
-  onChangeAdPreference: (pref: AdPreferenceMode) => void;
 }
 
 const CreatorFaqAccordion: React.FC<CreatorFaqAccordionProps> = ({
-  balancedCpm,
   maxAdsCpm,
   inrRate,
   usdtInrRate,
@@ -139,19 +136,18 @@ const CreatorFaqAccordion: React.FC<CreatorFaqAccordionProps> = ({
   usdtMinUsd,
   minWatchSeconds,
   onNavigate,
-  onChangeAdPreference,
 }) => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   const faqItems = [
     {
-      code: '01 · CPM PLANS',
+      code: '01 · $3.00 CPM PLAN',
       category: 'Monetization',
-      question: `How do the 2 Monetization Plans ($${balancedCpm.toFixed(2)} Balanced vs $${maxAdsCpm.toFixed(2)} Max Ads) work?`,
-      answer: `ShareDabba offers strictly two transparent monetization plans that you can toggle anytime in one click. The Balanced Plan ($${balancedCpm.toFixed(2)} eCPM / ≈ ₹${(balancedCpm * inrRate).toFixed(0)} INR per 1,000 views) runs a single skippable pre-roll ad slot with zero mid-roll interruptions for high audience retention. The Max Ads Plan ($${maxAdsCpm.toFixed(2)} eCPM / ≈ ₹${(maxAdsCpm * inrRate).toFixed(0)} INR per 1,000 views) enables pre-roll plus eligible mid-roll VAST ad placements for 50% higher creator revenue.`,
-      badge: `$${balancedCpm.toFixed(2)} & $${maxAdsCpm.toFixed(2)} eCPM`,
-      actionLabel: 'Switch Active Plan',
-      onAction: () => onChangeAdPreference('more'),
+      question: `How does the Official $${maxAdsCpm.toFixed(2)} CPM Creator Plan work?`,
+      answer: `ShareDabba operates a unified, high-yield $${maxAdsCpm.toFixed(2)} CPM Creator Plan (≈ ₹${(maxAdsCpm * inrRate).toFixed(0)} INR per 1,000 eligible views). Every shared video and file link earns $${maxAdsCpm.toFixed(2)} USD per 1,000 verified views with VAST 4.2 ad placements, credited directly to your double-entry creator wallet.`,
+      badge: `$${maxAdsCpm.toFixed(2)} eCPM`,
+      actionLabel: 'View $3.00 CPM Plan',
+      onAction: () => onNavigate('pricing'),
     },
     {
       code: '02 · INSTANT PAYOUTS',
@@ -220,7 +216,7 @@ const CreatorFaqAccordion: React.FC<CreatorFaqAccordionProps> = ({
                       <span className="text-blue-700 dark:text-blue-400 font-bold">{item.code}</span>
                       <span aria-hidden="true" className="text-neutral-400">·</span>
                       <span className="text-neutral-500 dark:text-neutral-400">{item.category}</span>
-                      <span className="px-2 py-0.5 rounded border border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold">
+                      <span className="px-2 py-0.5 rounded border border-sky-400/40 bg-sky-500/10 text-blue-700 dark:text-sky-300 font-semibold">
                         {item.badge}
                       </span>
                     </div>
@@ -298,9 +294,9 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
   const [copiedPublicSlug, setCopiedPublicSlug] = useState<string | null>(null);
 
   // Auth Forms State
-  const [authEmail, setAuthEmail] = useState('arjun.mehta@sharedabba.in');
-  const [authPassword, setAuthPassword] = useState('••••••••••••');
-  const [authName, setAuthName] = useState('Arjun Mehta');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authName, setAuthName] = useState('');
   const [ageConfirmed, setAgeConfirmed] = useState(true);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
 
@@ -324,17 +320,20 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
   const handleFirebaseGoogleClick = async (emailHint?: string, nameHint?: string) => {
     if (googleSigningIn) return;
     setGoogleSigningIn(true);
+    setAuthMessage(null);
     try {
       await onGoogleLogin(emailHint, nameHint);
+    } catch {
+      setAuthMessage(
+        'Enter your Google or creator email address below and click Sign Up / Sign In to continue.'
+      );
     } finally {
       setGoogleSigningIn(false);
     }
   };
 
   const maxAdsCpm = Number(customCodes?.maxAdsCpmUsd ?? 3.0);
-  const balancedCpm = Number(customCodes?.balancedAdsCpmUsd ?? rules?.targetCpmUsd ?? 2.0);
-
-  const targetCpm = adPreference === 'more' ? maxAdsCpm : balancedCpm;
+  const targetCpm = maxAdsCpm;
   const baseInrRate = Number(customCodes?.usdToInrRate || rules?.usdToInrRate || 86.45);
   const baseUsdtInrRate = Number(customCodes?.usdtToInrRate || 88.85);
 
@@ -496,9 +495,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
   // ---------------------------------------------------------------------------
   if (route === 'home') {
     const monthlyEligibleViews = calcDailyViews * 30;
-    const estMonthlyBalancedUsd = (monthlyEligibleViews / 1000) * balancedCpm;
-    const estMonthlyMaxAdsUsd = (monthlyEligibleViews / 1000) * maxAdsCpm;
-    const estMonthlyUsd = adPreference === 'more' ? estMonthlyMaxAdsUsd : estMonthlyBalancedUsd;
+    const estMonthlyUsd = (monthlyEligibleViews / 1000) * maxAdsCpm;
     const estMonthlyInr = estMonthlyUsd * inrRate;
 
     return (
@@ -509,7 +506,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
           className="pointer-events-none select-none absolute inset-x-0 top-0 h-[620px] overflow-hidden -z-10 opacity-75 dark:opacity-60"
         >
           <div className="max-w-7xl mx-auto relative h-full">
-            <div className="hidden xl:flex items-center gap-2 absolute top-6 right-4 px-3 py-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/5 backdrop-blur-xs inr-note-anim">
+            <div className="hidden xl:flex items-center gap-2 absolute top-6 right-4 px-3 py-1.5 rounded-xl border border-sky-400/30 bg-sky-500/5 backdrop-blur-xs inr-note-anim">
               <InrCurrencyNoteBadge amountLabel="₹500 INR INSTANT UPI" />
             </div>
             <div className="hidden xl:flex items-center gap-2 absolute bottom-8 left-4 px-3 py-1.5 rounded-xl border border-blue-500/25 bg-blue-500/5 backdrop-blur-xs inr-note-anim-alt">
@@ -525,12 +522,12 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
             <div className="lg:col-span-6 flex flex-col justify-between space-y-8">
               <div className="space-y-5">
                 <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono text-neutral-600 dark:text-neutral-400">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-amber-500/35 bg-amber-500/10 font-semibold text-neutral-950 dark:text-white">
-                    <Zap className="w-3.5 h-3.5 text-amber-500 icon-anim-bolt" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-sky-400/45 bg-sky-500/10 font-semibold text-neutral-950 dark:text-white">
+                    <Zap className="w-3.5 h-3.5 text-sky-500 icon-anim-bolt" />
                     Lightning-Fast UPI & USDT Payouts
                   </span>
-                  <span className="px-2.5 py-1 rounded-md border border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300 font-semibold">
-                    2 Plans: ${balancedCpm.toFixed(2)} & ${maxAdsCpm.toFixed(2)} CPM
+                  <span className="px-2.5 py-1 rounded-md border border-blue-500/35 bg-blue-500/10 text-blue-700 dark:text-sky-300 font-semibold">
+                    Official ${maxAdsCpm.toFixed(2)} CPM Plan
                   </span>
                 </div>
 
@@ -545,7 +542,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                     customCodes.customHeroSubheadline
                   ) : (
                     <>
-                      Upload files and videos, share monetized links anywhere, switch between our 2 official plans (<strong>${balancedCpm.toFixed(2)} Balanced Plan</strong> or <strong>${maxAdsCpm.toFixed(2)} Max Ads Plan</strong>), and withdraw instantly via India UPI (₹ INR) or Global USDT.
+                      Upload files and videos, share monetized links anywhere on our official <strong>${maxAdsCpm.toFixed(2)} CPM Creator Plan</strong>, and withdraw instantly via India UPI (₹ INR) or Global USDT.
                     </>
                   )}
                 </p>
@@ -557,7 +554,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                     id="hero-start-earning-btn"
                     type="button"
                     onClick={() => onNavigate('register')}
-                    className="min-h-[46px] px-5 py-3 rounded-lg bg-gradient-to-r from-neutral-950 via-blue-950 to-indigo-950 dark:from-white dark:via-blue-50 dark:to-white text-white dark:text-neutral-950 border border-blue-500/45 font-bold text-sm hover:opacity-95 hover:shadow-md transition-all inline-flex items-center justify-center gap-2 w-full shadow-sm cursor-pointer"
+                    className="min-h-[46px] px-5 py-3 rounded-lg bg-gradient-to-r from-neutral-950 via-blue-950 to-sky-950 dark:from-white dark:via-sky-50 dark:to-white text-white dark:text-neutral-950 border border-sky-400/50 font-bold text-sm hover:opacity-95 hover:shadow-md transition-all inline-flex items-center justify-center gap-2 w-full shadow-sm cursor-pointer"
                   >
                     <GoogleGIcon className="w-4 h-4 shrink-0" />
                     <span>Start Earning</span>
@@ -566,10 +563,10 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('pricing')}
-                    className="min-h-[46px] px-5 py-3 rounded-lg color-graded-panel text-neutral-900 dark:text-white font-semibold text-sm hover:border-blue-500 transition-colors inline-flex items-center justify-center gap-2 w-full cursor-pointer"
+                    className="min-h-[46px] px-5 py-3 rounded-lg color-graded-panel text-neutral-900 dark:text-white font-semibold text-sm hover:border-sky-500 transition-colors inline-flex items-center justify-center gap-2 w-full cursor-pointer"
                   >
-                    <Sliders className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
-                    <span>Compare ${balancedCpm.toFixed(0)} & ${maxAdsCpm.toFixed(0)} CPM Plans</span>
+                    <Sliders className="w-4 h-4 shrink-0 text-blue-600 dark:text-sky-400" />
+                    <span>${maxAdsCpm.toFixed(2)} CPM Creator Plan</span>
                   </button>
                 </div>
 
@@ -577,7 +574,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                 <div className="p-4 sm:p-5 rounded-xl color-graded-panel space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2.5">
-                      <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white inline-flex items-center justify-center shrink-0 shadow-xs">
+                      <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-sky-500 text-white inline-flex items-center justify-center shrink-0 shadow-xs">
                         <Upload className="w-4 h-4 icon-anim-float" />
                       </span>
                       <div>
@@ -619,9 +616,9 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                     <span className="truncate max-w-full">
                       {sessionAccountEmail
                         ? `Active Session: ${sessionAccountName || 'Creator'} (${sessionAccountEmail})`
-                        : 'One-click Google Sign Up activates $2.00 Balanced & $3.00 Max Ads monetization'}
+                        : `One-click Google Sign Up activates $${maxAdsCpm.toFixed(2)} CPM monetization`}
                     </span>
-                    <span className="shrink-0 font-semibold text-emerald-700 dark:text-emerald-400">
+                    <span className="shrink-0 font-semibold text-blue-600 dark:text-sky-400">
                       Firebase Verified
                     </span>
                   </div>
@@ -639,8 +636,8 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                     {/* Console Top Header with Animated Status Icons */}
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 dark:border-neutral-800 pb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neutral-950 to-blue-950 dark:from-white dark:to-blue-100 text-white dark:text-neutral-950 flex items-center justify-center shrink-0 icon-anim-halo">
-                          <Zap className="w-5 h-5 text-amber-400 dark:text-amber-600 icon-anim-bolt" />
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neutral-950 to-blue-950 dark:from-white dark:to-sky-100 text-white dark:text-neutral-950 flex items-center justify-center shrink-0 icon-anim-halo">
+                          <Zap className="w-5 h-5 text-sky-400 dark:text-blue-600 icon-anim-bolt" />
                         </div>
                         <div>
                           <h2 className="text-sm sm:text-base font-bold text-neutral-950 dark:text-white">
@@ -663,7 +660,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                               : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
                           }`}
                         >
-                          <Zap className="w-3.5 h-3.5 text-amber-500" />
+                          <Zap className="w-3.5 h-3.5 text-sky-400" />
                           <span>Lightning UPI</span>
                         </button>
                         <button
@@ -671,11 +668,11 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                           onClick={() => setSelectedPayoutRail('usdt')}
                           className={`min-h-[34px] px-3 py-1 rounded-md text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-colors ${
                             selectedPayoutRail === 'usdt'
-                              ? 'bg-emerald-600 text-white'
+                              ? 'bg-blue-600 text-white'
                               : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
                           }`}
                         >
-                          <Coins className="w-3.5 h-3.5 text-emerald-400" />
+                          <Coins className="w-3.5 h-3.5 text-sky-300" />
                           <span>USDT Payout</span>
                         </button>
                       </div>
@@ -688,13 +685,13 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                         onClick={() => setSelectedPayoutRail('upi')}
                         className={`cursor-pointer p-4 rounded-xl border transition-all space-y-2.5 ${
                           selectedPayoutRail === 'upi'
-                            ? 'border-blue-600 dark:border-blue-400 bg-blue-50/30 dark:bg-blue-950/25 shadow-xs'
+                            ? 'border-blue-600 dark:border-sky-400 bg-blue-50/30 dark:bg-blue-950/25 shadow-xs'
                             : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="w-9 h-9 rounded-lg bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 inline-flex items-center justify-center shrink-0">
-                            <Zap className="w-4 h-4 text-amber-400 dark:text-amber-600 icon-anim-bolt" />
+                            <Zap className="w-4 h-4 text-sky-400 dark:text-blue-600 icon-anim-bolt" />
                           </span>
                           <InrCurrencyNoteBadge
                             amountLabel={`₹${(Number(customCodes?.upiMinWithdrawalUsd ?? 5) * inrRate).toFixed(0)} MIN`}
@@ -721,15 +718,15 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                         onClick={() => setSelectedPayoutRail('usdt')}
                         className={`cursor-pointer p-4 rounded-xl border transition-all space-y-2.5 ${
                           selectedPayoutRail === 'usdt'
-                            ? 'border-emerald-600 dark:border-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/25 shadow-xs'
+                            ? 'border-sky-500 dark:border-sky-400 bg-sky-50/40 dark:bg-sky-950/25 shadow-xs'
                             : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="w-9 h-9 rounded-lg bg-emerald-600 text-white inline-flex items-center justify-center icon-anim-emerald">
+                          <span className="w-9 h-9 rounded-lg bg-blue-600 text-white inline-flex items-center justify-center icon-anim-emerald">
                             <Coins className="w-4 h-4 icon-anim-float" />
                           </span>
-                          <span className="text-[11px] font-mono font-semibold text-emerald-700 dark:text-emerald-400">
+                          <span className="text-[11px] font-mono font-semibold text-blue-700 dark:text-sky-400">
                             1 USDT = ₹{usdtInrRate.toFixed(2)} INR
                           </span>
                         </div>
@@ -743,7 +740,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                         </div>
                         <div className="pt-2 border-t border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between text-xs font-mono tabular-nums">
                           <span className="text-neutral-500">Min Payout:</span>
-                          <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                          <span className="font-bold text-blue-700 dark:text-sky-400">
                             {Number(customCodes?.usdtMinWithdrawalUsd ?? 20).toFixed(0)} USDT (₹{(Number(customCodes?.usdtMinWithdrawalUsd ?? 20) * usdtInrRate).toFixed(0)} INR)
                           </span>
                         </div>
@@ -751,14 +748,14 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                     </div>
 
                     {/* Live USDT / INR & USD / INR Rate Adjuster Bar inside Console */}
-                    <div className="p-3.5 rounded-xl bg-neutral-50 dark:bg-neutral-900/90 border border-emerald-500/35 space-y-2.5 text-xs">
+                    <div className="p-3.5 rounded-xl bg-neutral-50 dark:bg-neutral-900/90 border border-sky-400/35 space-y-2.5 text-xs">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
                           <span className="font-mono font-bold text-neutral-950 dark:text-white">
                             LIVE USDT/INR: ₹{usdtInrRate.toFixed(2)}
                           </span>
-                          <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 font-semibold">
+                          <span className="text-[11px] font-mono text-blue-700 dark:text-sky-400 font-semibold">
                             ({fxChange24h >= 0 ? `+${fxChange24h}%` : `${fxChange24h}%`})
                           </span>
                           <span className="text-neutral-400">·</span>
@@ -794,7 +791,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                             type="button"
                             onClick={handleSyncLiveMarketRate}
                             disabled={syncingFx}
-                            className="px-2.5 py-1 rounded bg-emerald-600 text-white font-mono text-[11px] font-semibold inline-flex items-center gap-1 hover:bg-emerald-700 transition-colors"
+                            className="px-2.5 py-1 rounded bg-blue-600 text-white font-mono text-[11px] font-semibold inline-flex items-center gap-1 hover:bg-blue-700 transition-colors"
                           >
                             <RefreshCw className={`w-3 h-3 ${syncingFx ? 'animate-spin' : ''}`} />
                             <span>{syncingFx ? 'Syncing...' : 'Live Rate'}</span>
@@ -802,7 +799,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                         </div>
                       </div>
                       {fxBanner && (
-                        <p className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400">
+                        <p className="text-[11px] font-mono text-blue-700 dark:text-sky-400">
                           {fxBanner}
                         </p>
                       )}
@@ -816,10 +813,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                         </span>
                         <div>
                           <p className="font-semibold text-neutral-950 dark:text-white">
-                            Active Plan:{' '}
-                            {adPreference === 'more'
-                              ? `Max Ads Plan ($${maxAdsCpm.toFixed(2)} CPM)`
-                              : `Balanced Plan ($${balancedCpm.toFixed(2)} CPM)`}
+                            Active Plan: Official ${maxAdsCpm.toFixed(2)} CPM Plan
                           </p>
                           <p className="text-[11px] font-mono text-neutral-500">
                             Selected Settlement:{' '}
@@ -831,12 +825,10 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                       </div>
                       <button
                         type="button"
-                        onClick={() =>
-                          onChangeAdPreference(adPreference === 'more' ? 'balanced' : 'more')
-                        }
-                        className="px-3 py-1.5 rounded-md bg-white dark:bg-neutral-800 border border-blue-500/40 text-xs font-semibold text-neutral-900 dark:text-white hover:bg-blue-50/50 dark:hover:bg-neutral-700 transition-colors whitespace-nowrap"
+                        onClick={() => onNavigate('pricing')}
+                        className="px-3 py-1.5 rounded-md bg-white dark:bg-neutral-800 border border-sky-400/45 text-xs font-semibold text-neutral-900 dark:text-white hover:bg-sky-50/50 dark:hover:bg-neutral-700 transition-colors whitespace-nowrap"
                       >
-                        Switch to {adPreference === 'more' ? `Balanced ($${balancedCpm.toFixed(2)})` : `Max Ads ($${maxAdsCpm.toFixed(2)})`}
+                        ${maxAdsCpm.toFixed(2)} CPM Plan Details →
                       </button>
                     </div>
                   </div>
@@ -856,9 +848,9 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                     <button
                       type="button"
                       onClick={() => onNavigate('dashboard')}
-                      className="min-h-[42px] px-4 py-2.5 rounded-lg border border-blue-500/35 bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white text-xs font-semibold inline-flex items-center justify-center gap-2 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors w-full"
+                      className="min-h-[42px] px-4 py-2.5 rounded-lg border border-sky-400/40 bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white text-xs font-semibold inline-flex items-center justify-center gap-2 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors w-full"
                     >
-                      <Share2 className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                      <Share2 className="w-4 h-4 shrink-0 text-blue-600 dark:text-sky-400" />
                       <span>Upload & Create Share Link</span>
                     </button>
                   </div>
@@ -870,26 +862,26 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
           {/* Full-width 4-Column Platform Capabilities Strip below Hero */}
           <div className="mt-12 pt-8 border-t border-neutral-200 dark:border-neutral-800 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="p-4 rounded-xl color-graded-panel flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-sky-500 text-white flex items-center justify-center shrink-0">
                 <Sliders className="w-5 h-5 icon-anim-float" />
               </div>
               <div>
-                <p className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold">01. ONLY 2 SIMPLE PLANS</p>
+                <p className="text-xs font-mono text-blue-600 dark:text-sky-400 font-semibold">01. OFFICIAL CREATOR PLAN</p>
                 <p className="mt-0.5 text-lg font-bold font-mono tabular-nums text-neutral-950 dark:text-white">
-                  ${balancedCpm.toFixed(2)} or ${maxAdsCpm.toFixed(2)} CPM
+                  ${maxAdsCpm.toFixed(2)} CPM Rate
                 </p>
                 <p className="mt-0.5 text-xs text-neutral-600 dark:text-neutral-400">
-                  Switch between Balanced (${balancedCpm.toFixed(2)}) or Max Ads (${maxAdsCpm.toFixed(2)}) anytime.
+                  Earn ${maxAdsCpm.toFixed(2)} USD (₹{(maxAdsCpm * inrRate).toFixed(0)} INR) per 1,000 verified views.
                 </p>
               </div>
             </div>
 
             <div className="p-4 rounded-xl color-graded-panel flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-400/40 text-blue-600 dark:text-sky-400 flex items-center justify-center shrink-0">
                 <Zap className="w-5 h-5 icon-anim-bolt" />
               </div>
               <div>
-                <p className="text-xs font-mono text-amber-600 dark:text-amber-400 font-semibold">02. LIGHTNING INDIA UPI</p>
+                <p className="text-xs font-mono text-blue-600 dark:text-sky-400 font-semibold">02. LIGHTNING INDIA UPI</p>
                 <p className="mt-0.5 text-lg font-bold font-mono tabular-nums text-neutral-950 dark:text-white">
                   $5.00 Min (₹{(5 * inrRate).toFixed(0)})
                 </p>
@@ -900,11 +892,11 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
             </div>
 
             <div className="p-4 rounded-xl color-graded-panel flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/40 text-blue-600 dark:text-sky-400 flex items-center justify-center shrink-0">
                 <Coins className="w-5 h-5 icon-anim-float" />
               </div>
               <div>
-                <p className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-semibold">03. GLOBAL USDT PAYOUT</p>
+                <p className="text-xs font-mono text-blue-600 dark:text-sky-400 font-semibold">03. GLOBAL USDT PAYOUT</p>
                 <p className="mt-0.5 text-lg font-bold font-mono tabular-nums text-neutral-950 dark:text-white">
                   TRC-20 · ERC-20 · BEP-20
                 </p>
@@ -915,11 +907,11 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
             </div>
 
             <div className="p-4 rounded-xl color-graded-panel flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-400/40 text-blue-600 dark:text-sky-400 flex items-center justify-center shrink-0">
                 <ShieldCheck className="w-5 h-5 icon-anim-float" />
               </div>
               <div>
-                <p className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold">04. UNLIMITED CLOUD LINKS</p>
+                <p className="text-xs font-mono text-blue-600 dark:text-sky-400 font-semibold">04. UNLIMITED CLOUD LINKS</p>
                 <p className="mt-0.5 text-lg font-bold font-mono tabular-nums text-neutral-950 dark:text-white">
                   MP4 · ZIP · PDF · APK
                 </p>
@@ -931,189 +923,96 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
           </div>
         </section>
 
-        {/* Plan Pricing / Benefits Section — Strictly 2 Plans ($2.00 Balanced & $3.00 Max Ads) */}
+        {/* Unified $3.00 CPM Plan Section */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-neutral-200 dark:border-neutral-800 pb-5">
             <div className="space-y-1.5 max-w-2xl">
-              <p className="text-xs font-mono text-blue-700 dark:text-blue-400 font-semibold">
-                2 MONETIZATION PLANS · SELF-ADJUSTING CREATOR CPM
+              <p className="text-xs font-mono text-blue-600 dark:text-sky-400 font-semibold">
+                OFFICIAL CREATOR MONETIZATION PLAN · HIGH-YIELD VAST 4.2
               </p>
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
-                Only 2 Simple Plans: Balanced (${balancedCpm.toFixed(2)}) or Max Ads (${maxAdsCpm.toFixed(2)})
+                Official ${maxAdsCpm.toFixed(2)} CPM Creator Plan
               </h2>
               <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                Choose how your shared links are monetized. Toggle directly between Balanced Plan (${balancedCpm.toFixed(2)} CPM) for smooth single-slot playback or Max Ads Plan (${maxAdsCpm.toFixed(2)} CPM) for maximum earning potential.
+                Every shared video and file link on ShareDabba earns on our unified ${maxAdsCpm.toFixed(2)} CPM plan (≈ ₹{(maxAdsCpm * inrRate).toFixed(0)} INR per 1,000 verified views) with instant India UPI and Global USDT withdrawals.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-neutral-100 dark:bg-neutral-900 rounded-xl border border-blue-500/25 w-full md:w-auto shrink-0">
-              <button
-                type="button"
-                onClick={() => onChangeAdPreference('balanced')}
-                className={`min-h-[38px] px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors inline-flex items-center justify-center ${
-                  adPreference === 'balanced'
-                    ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 shadow-xs'
-                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
-                }`}
-              >
-                Balanced (${balancedCpm.toFixed(2)} CPM)
-              </button>
-              <button
-                type="button"
-                onClick={() => onChangeAdPreference('more')}
-                className={`min-h-[38px] px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors inline-flex items-center justify-center ${
-                  adPreference === 'more'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
-                }`}
-              >
-                Max Ads (${maxAdsCpm.toFixed(2)} CPM)
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => onNavigate('register')}
+              className="min-h-[40px] px-5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors inline-flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+            >
+              <span>Activate ${maxAdsCpm.toFixed(2)} CPM Plan</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          {/* Two Liquid Retina Cards with Animated Corner-Border Shine & INR Notes */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Card 1: Balanced Plan ($2.00 CPM) */}
-            <div className="liquid-retina-card">
-              <div className="liquid-retina-inner bg-white dark:bg-neutral-950 p-5 sm:p-8 h-full flex flex-col justify-between space-y-6">
-                <div className="liquid-retina-glow" aria-hidden="true" />
-                <div className="relative z-10 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-2 text-xs font-mono text-blue-700 dark:text-blue-400 font-semibold">
-                      <span className="w-6 h-6 rounded-md bg-blue-600 text-white inline-flex items-center justify-center">
-                        <Sliders className="w-3.5 h-3.5 icon-anim-float" />
-                      </span>
-                      PLAN 01 · BALANCED STANDARD PLAN
+          <div className="liquid-retina-card">
+            <div className="liquid-retina-inner bg-white dark:bg-neutral-950 p-6 sm:p-8 flex flex-col justify-between space-y-6">
+              <div className="liquid-retina-glow" aria-hidden="true" />
+              <div className="relative z-10 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-2 text-xs font-mono text-blue-600 dark:text-sky-400 font-semibold">
+                    <span className="w-6 h-6 rounded-md bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 inline-flex items-center justify-center">
+                      <Zap className="w-3.5 h-3.5 text-sky-400 dark:text-blue-600 icon-anim-bolt" />
                     </span>
-                    <InrCurrencyNoteBadge
-                      amountLabel={`≈ ₹${(balancedCpm * inrRate).toFixed(0)} INR / 1k Views`}
-                    />
+                    OFFICIAL PLAN · ${maxAdsCpm.toFixed(2)} CPM MONETIZATION
+                  </span>
+                  <InrCurrencyNoteBadge
+                    amountLabel={`≈ ₹${(maxAdsCpm * inrRate).toFixed(0)} INR / 1k Views`}
+                    altAnim
+                  />
+                </div>
+
+                <div className="flex items-baseline justify-between gap-4 border-b border-neutral-200/80 dark:border-neutral-800 pb-4">
+                  <div>
+                    <h3 className="text-xl sm:text-2xl font-bold text-neutral-950 dark:text-white">
+                      ${maxAdsCpm.toFixed(2)} CPM Creator Plan
+                    </h3>
+                    <p className="text-xs font-medium text-blue-600 dark:text-sky-400 mt-0.5">
+                      Maximum Creator Yield · Verified VAST 4.2 Monetization
+                    </p>
                   </div>
-
-                  <div className="flex items-baseline justify-between gap-4 border-b border-neutral-200/80 dark:border-neutral-800 pb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-neutral-950 dark:text-white">
-                        Balanced Plan
-                      </h3>
-                      <p className="text-xs font-medium text-blue-700 dark:text-blue-400 mt-0.5">
-                        Benefit: High Viewer Retention & Steady Creator Yield
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-3xl sm:text-4xl font-bold font-mono tabular-nums text-neutral-950 dark:text-white">
-                        ${balancedCpm.toFixed(2)}
-                      </span>
-                      <span className="block text-[11px] font-mono text-neutral-500">
-                        Target eCPM / 1k views
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                    The recommended standard monetization plan for general videos, tutorials, and shared files. Delivers single-slot skippable pre-roll ads with zero mid-roll interruptions, keeping viewers engaged while paying a steady ${balancedCpm.toFixed(2)} eCPM.
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 text-xs font-mono text-neutral-600 dark:text-neutral-400">
-                    <div>· Single Skippable Pre-Roll Slot</div>
-                    <div>· 10,000 Views = ${(10 * balancedCpm).toFixed(2)} (₹{(10 * balancedCpm * inrRate).toFixed(0)})</div>
-                    <div>· Zero Mid-Roll Interruptions</div>
-                    <div>· Instant UPI & USDT Withdrawals</div>
+                  <div className="text-right shrink-0">
+                    <span className="text-3xl sm:text-4xl font-bold font-mono tabular-nums text-neutral-950 dark:text-white">
+                      ${maxAdsCpm.toFixed(2)}
+                    </span>
+                    <span className="block text-[11px] font-mono text-neutral-500">
+                      Target eCPM / 1k views
+                    </span>
                   </div>
                 </div>
 
-                <div className="relative z-10 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => onChangeAdPreference('balanced')}
-                    className={`min-h-[44px] w-full py-2.5 px-4 rounded-lg text-xs font-semibold transition-colors inline-flex items-center justify-center gap-2 ${
-                      adPreference === 'balanced'
-                        ? 'bg-blue-700 text-white'
-                        : 'bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 hover:opacity-90'
-                    }`}
-                  >
-                    {adPreference === 'balanced' ? (
-                      <>
-                        <Check className="w-4 h-4 shrink-0" />
-                        <span>Active: Balanced Plan (${balancedCpm.toFixed(2)} CPM)</span>
-                      </>
-                    ) : (
-                      <span>Select Balanced Plan (${balancedCpm.toFixed(2)} CPM)</span>
-                    )}
-                  </button>
+                <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                  Designed for creators who want maximum revenue yield from every shared video and file link. Enables pre-roll plus eligible mid-roll VAST ad placements at ${maxAdsCpm.toFixed(2)} eCPM with zero monthly hosting fees.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1 text-xs font-mono text-neutral-700 dark:text-neutral-300">
+                  <div className="p-3 rounded-lg bg-sky-50/50 dark:bg-sky-950/20 border border-sky-400/30">
+                    · Pre-Roll + Mid-Roll Ad Slots
+                  </div>
+                  <div className="p-3 rounded-lg bg-sky-50/50 dark:bg-sky-950/20 border border-sky-400/30">
+                    · 10,000 Views = ${(10 * maxAdsCpm).toFixed(2)} (₹{(10 * maxAdsCpm * inrRate).toFixed(0)})
+                  </div>
+                  <div className="p-3 rounded-lg bg-sky-50/50 dark:bg-sky-950/20 border border-sky-400/30">
+                    · Priority High-Bid Ad Demand
+                  </div>
+                  <div className="p-3 rounded-lg bg-sky-50/50 dark:bg-sky-950/20 border border-sky-400/30">
+                    · Instant UPI & USDT Withdrawals
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Card 2: Max Ads Plan ($3.00 CPM) */}
-            <div className="liquid-retina-card">
-              <div className="liquid-retina-inner bg-white dark:bg-neutral-950 p-5 sm:p-8 h-full flex flex-col justify-between space-y-6">
-                <div className="liquid-retina-glow" aria-hidden="true" />
-                <div className="relative z-10 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-2 text-xs font-mono text-amber-600 dark:text-amber-400 font-semibold">
-                      <span className="w-6 h-6 rounded-md bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 inline-flex items-center justify-center">
-                        <Zap className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600 icon-anim-bolt" />
-                      </span>
-                      PLAN 02 · MAX ADS MONETIZATION PLAN
-                    </span>
-                    <InrCurrencyNoteBadge
-                      amountLabel={`≈ ₹${(maxAdsCpm * inrRate).toFixed(0)} INR / 1k Views`}
-                      altAnim
-                    />
-                  </div>
-
-                  <div className="flex items-baseline justify-between gap-4 border-b border-neutral-200/80 dark:border-neutral-800 pb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-neutral-950 dark:text-white">
-                        Max Ads Plan
-                      </h3>
-                      <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mt-0.5">
-                        Benefit: Maximum Potential Earning (+50% Higher Yield)
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-3xl sm:text-4xl font-bold font-mono tabular-nums text-neutral-950 dark:text-white">
-                        ${maxAdsCpm.toFixed(2)}
-                      </span>
-                      <span className="block text-[11px] font-mono text-neutral-500">
-                        Target eCPM / 1k views
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                    Designed for creators who want the highest revenue yield from every shared video and file link. Enables pre-roll plus eligible mid-roll VAST ad placements for maximum monetization potential at ${maxAdsCpm.toFixed(2)} eCPM.
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 text-xs font-mono text-neutral-600 dark:text-neutral-400">
-                    <div>· Pre-Roll + Mid-Roll Ad Slots</div>
-                    <div>· 10,000 Views = ${(10 * maxAdsCpm).toFixed(2)} (₹{(10 * maxAdsCpm * inrRate).toFixed(0)})</div>
-                    <div>· Priority High-Bid Ad Demand</div>
-                    <div>· Instant UPI & USDT Withdrawals</div>
-                  </div>
-                </div>
-
-                <div className="relative z-10 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => onChangeAdPreference('more')}
-                    className={`min-h-[44px] w-full py-2.5 px-4 rounded-lg text-xs font-semibold transition-colors inline-flex items-center justify-center gap-2 ${
-                      adPreference === 'more'
-                        ? 'bg-blue-700 text-white'
-                        : 'bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 hover:opacity-90'
-                    }`}
-                  >
-                    {adPreference === 'more' ? (
-                      <>
-                        <Check className="w-4 h-4 shrink-0" />
-                        <span>Active: Max Ads Plan (${maxAdsCpm.toFixed(2)} CPM)</span>
-                      </>
-                    ) : (
-                      <span>Select Max Ads Plan (${maxAdsCpm.toFixed(2)} CPM)</span>
-                    )}
-                  </button>
-                </div>
+              <div className="relative z-10 pt-2">
+                <button
+                  type="button"
+                  onClick={() => onNavigate('dashboard')}
+                  className="min-h-[44px] w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Check className="w-4 h-4 shrink-0" />
+                  <span>Active: Official ${maxAdsCpm.toFixed(2)} CPM Plan — Open Creator Dashboard</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1123,7 +1022,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
         <section className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-neutral-200 dark:border-neutral-800 pb-4">
             <div>
-              <p className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold">
+              <p className="text-xs font-mono text-blue-600 dark:text-sky-400 font-semibold">
                 INSTANT PAYOUTS & CLOUD INFRASTRUCTURE
               </p>
               <h2 className="text-2xl font-bold tracking-tight text-neutral-950 dark:text-white mt-1">
@@ -1146,7 +1045,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="w-11 h-11 rounded-xl bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 flex items-center justify-center">
-                    <Zap className="w-5 h-5 text-amber-400 dark:text-amber-600 icon-anim-bolt" />
+                    <Zap className="w-5 h-5 text-sky-400 dark:text-blue-600 icon-anim-bolt" />
                   </div>
                   <InrCurrencyNoteBadge amountLabel="INSTANT ₹ INR UPI" />
                 </div>
@@ -1162,7 +1061,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                 onClick={() => onNavigate('dashboard')}
                 className="min-h-[38px] w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 text-xs font-semibold text-neutral-900 dark:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors inline-flex items-center justify-center gap-1.5"
               >
-                <Zap className="w-3.5 h-3.5 text-amber-500" />
+                <Zap className="w-3.5 h-3.5 text-sky-500" />
                 <span>Configure UPI Payout</span>
               </button>
             </div>
@@ -1171,10 +1070,10 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
             <div className="p-6 rounded-xl color-graded-panel flex flex-col justify-between space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="w-11 h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center icon-anim-emerald">
+                  <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center icon-anim-emerald">
                     <Coins className="w-5 h-5 icon-anim-float" />
                   </div>
-                  <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 font-semibold">
+                  <span className="text-[11px] font-mono text-blue-700 dark:text-sky-400 font-semibold">
                     USDT TRC-20 & ERC-20
                   </span>
                 </div>
@@ -1188,40 +1087,38 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
               <button
                 type="button"
                 onClick={() => onNavigate('dashboard')}
-                className="min-h-[38px] w-full px-3 py-2 rounded-lg border border-emerald-600/40 dark:border-emerald-500/40 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition-colors inline-flex items-center justify-center gap-1.5"
+                className="min-h-[38px] w-full px-3 py-2 rounded-lg border border-sky-500/40 text-xs font-semibold text-blue-700 dark:text-sky-400 hover:bg-sky-50/50 dark:hover:bg-sky-950/30 transition-colors inline-flex items-center justify-center gap-1.5"
               >
                 <Globe className="w-3.5 h-3.5" />
                 <span>Withdraw in USDT</span>
               </button>
             </div>
 
-            {/* 3. Dynamic Self-Adjusting CPM */}
+            {/* 3. Unified $3.00 CPM Plan */}
             <div className="p-6 rounded-xl color-graded-panel flex flex-col justify-between space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center icon-anim-halo">
                     <Sliders className="w-5 h-5 icon-anim-float" />
                   </div>
-                  <span className="text-[11px] font-mono text-blue-700 dark:text-blue-400 font-semibold">
-                    ${balancedCpm.toFixed(2)} OR ${maxAdsCpm.toFixed(2)} CPM
+                  <span className="text-[11px] font-mono text-blue-700 dark:text-sky-400 font-semibold">
+                    ${maxAdsCpm.toFixed(2)} CPM PLAN
                   </span>
                 </div>
                 <h3 className="text-base font-bold text-neutral-950 dark:text-white">
-                  2-Plan Ad-Load Control
+                  Official ${maxAdsCpm.toFixed(2)} CPM Rate
                 </h3>
                 <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                  Adjust ad density yourself. Pick Balanced Plan (${balancedCpm.toFixed(2)} CPM) for optimal viewer retention or Max Ads Plan (${maxAdsCpm.toFixed(2)} CPM) for peak revenue.
+                  Earn a transparent ${maxAdsCpm.toFixed(2)} USD per 1,000 verified views across all your shared video and file links with priority VAST ad demand.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  onChangeAdPreference(adPreference === 'more' ? 'balanced' : 'more')
-                }
+                onClick={() => onNavigate('pricing')}
                 className="min-h-[38px] w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 text-xs font-semibold text-neutral-900 dark:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors inline-flex items-center justify-center gap-1.5"
               >
-                <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span>Toggle $2 / $3 CPM Plan</span>
+                <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400" />
+                <span>View ${maxAdsCpm.toFixed(2)} CPM Plan</span>
               </button>
             </div>
 
@@ -1285,7 +1182,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="w-11 h-11 rounded-xl bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 flex items-center justify-center">
-                    <BarChart3 className="w-5 h-5 text-blue-400 dark:text-blue-600 icon-anim-float" />
+                    <BarChart3 className="w-5 h-5 text-sky-400 dark:text-blue-600 icon-anim-float" />
                   </div>
                   <span className="text-[11px] font-mono text-neutral-500 font-semibold">
                     REAL-TIME TELEMETRY
@@ -1309,21 +1206,21 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
           </div>
         </section>
 
-        {/* Transparent Creator Earnings Calculator — Strictly 2 Plans ($2.00 Balanced & $3.00 Max Ads) */}
+        {/* Transparent Creator Earnings Calculator — Official $3.00 CPM Plan */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="p-5 sm:p-8 rounded-2xl color-graded-panel grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-5 space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold">
-                  2-PLAN EARNINGS CALCULATOR
+                <span className="text-xs font-mono text-blue-600 dark:text-sky-400 font-semibold">
+                  ${maxAdsCpm.toFixed(2)} CPM EARNINGS CALCULATOR
                 </span>
                 <InrCurrencyNoteBadge amountLabel={`₹${(targetCpm * inrRate).toFixed(0)} INR / 1K`} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
-                Calculate Your $2.00 Balanced & $3.00 Max Ads Earnings
+                Calculate Your ${maxAdsCpm.toFixed(2)} CPM Creator Earnings
               </h2>
               <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                Estimate your monthly payout across our two creator plans: <strong>Balanced Plan (${balancedCpm.toFixed(2)} CPM)</strong> or <strong>Max Ads Plan (${maxAdsCpm.toFixed(2)} CPM)</strong> per 1,000 eligible monetized views.
+                Estimate your monthly payout on our official <strong>${maxAdsCpm.toFixed(2)} CPM Creator Plan</strong> per 1,000 eligible monetized views.
               </p>
               <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
                 Withdraw your finalized balance anytime via Lightning-Fast India UPI (₹ INR) or Global USDT (TRC-20 / ERC-20).
@@ -1339,42 +1236,21 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                 <button
                   type="button"
                   onClick={() => onNavigate('pricing')}
-                  className="min-h-[42px] px-4 py-2 rounded-lg border border-blue-500/35 text-xs font-semibold text-neutral-900 dark:text-white inline-flex items-center justify-center"
+                  className="min-h-[42px] px-4 py-2 rounded-lg border border-sky-400/40 text-xs font-semibold text-neutral-900 dark:text-white inline-flex items-center justify-center"
                 >
-                  Compare $2 & $3 CPM Plans
+                  View ${maxAdsCpm.toFixed(2)} CPM Plan
                 </button>
               </div>
             </div>
 
-            <div className="lg:col-span-7 p-5 sm:p-6 rounded-xl bg-white dark:bg-neutral-950 border border-blue-500/25 dark:border-blue-400/25 space-y-5 shadow-sm">
+            <div className="lg:col-span-7 p-5 sm:p-6 rounded-xl bg-white dark:bg-neutral-950 border border-sky-400/35 space-y-5 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="text-xs font-bold text-neutral-900 dark:text-white">
-                  Interactive 2-Plan Earnings Calculator ($2.00 vs $3.00 CPM)
+                  Interactive ${maxAdsCpm.toFixed(2)} CPM Earnings Calculator
                 </span>
-                <div className="grid grid-cols-2 gap-1.5 p-1 bg-neutral-100 dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-800 w-full sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => onChangeAdPreference('balanced')}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap ${
-                      adPreference === 'balanced'
-                        ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 shadow-xs'
-                        : 'text-neutral-600 dark:text-neutral-400'
-                    }`}
-                  >
-                    Balanced Plan (${balancedCpm.toFixed(2)})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onChangeAdPreference('more')}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap ${
-                      adPreference === 'more'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-neutral-600 dark:text-neutral-400'
-                    }`}
-                  >
-                    Max Ads Plan (${maxAdsCpm.toFixed(2)})
-                  </button>
-                </div>
+                <span className="px-3 py-1 rounded-md bg-blue-600 text-white text-xs font-mono font-semibold">
+                  Active Rate: ${maxAdsCpm.toFixed(2)} CPM
+                </span>
               </div>
 
               <div className="space-y-2">
@@ -1402,21 +1278,21 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-neutral-200 dark:border-neutral-800">
                 <div className="p-3.5 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800">
                   <p className="text-[11px] text-neutral-500">
-                    30-Day Payout ({adPreference === 'more' ? `$${maxAdsCpm.toFixed(2)} Max Ads` : `$${balancedCpm.toFixed(2)} Balanced`})
+                    30-Day Payout (${maxAdsCpm.toFixed(2)} CPM)
                   </p>
                   <p className="text-xl font-bold font-mono tabular-nums text-neutral-950 dark:text-white mt-1">
                     ${estMonthlyUsd.toFixed(2)} USD
                   </p>
                 </div>
-                <div className="p-3.5 rounded-xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-500/30">
-                  <p className="text-[11px] text-emerald-800 dark:text-emerald-300 flex items-center justify-between gap-1">
+                <div className="p-3.5 rounded-xl bg-sky-50/40 dark:bg-sky-950/20 border border-sky-400/35">
+                  <p className="text-[11px] text-blue-800 dark:text-sky-300 flex items-center justify-between gap-1">
                     <span className="inline-flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-amber-500" />
+                      <Zap className="w-3 h-3 text-sky-500" />
                       <span>UPI (₹{inrRate.toFixed(2)})</span>
                     </span>
                     <span className="font-mono font-bold">₹ INR</span>
                   </p>
-                  <p className="text-xl font-bold font-mono tabular-nums text-emerald-700 dark:text-emerald-400 mt-1">
+                  <p className="text-xl font-bold font-mono tabular-nums text-blue-700 dark:text-sky-400 mt-1">
                     ₹{estMonthlyInr.toLocaleString('en-IN', { maximumFractionDigits: 0 })} INR
                   </p>
                 </div>
@@ -1428,42 +1304,12 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                     </span>
                     <span className="font-mono font-bold">LIVE INR</span>
                   </p>
-                  <p className="text-xl font-bold font-mono tabular-nums text-blue-700 dark:text-blue-400 mt-1">
+                  <p className="text-xl font-bold font-mono tabular-nums text-blue-700 dark:text-sky-400 mt-1">
                     {estMonthlyUsd.toFixed(2)} USDT
                   </p>
-                  <p className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 font-semibold mt-0.5">
+                  <p className="text-[11px] font-mono text-blue-700 dark:text-sky-400 font-semibold mt-0.5">
                     ≈ ₹{(estMonthlyUsd * usdtInrRate).toLocaleString('en-IN', { maximumFractionDigits: 0 })} INR
                   </p>
-                </div>
-              </div>
-
-              {/* Side-by-Side Both Plans Instant Reference Bar ($2.00 Balanced vs $3.00 Max Ads) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs font-mono">
-                <div
-                  onClick={() => onChangeAdPreference('balanced')}
-                  className={`cursor-pointer p-3 rounded-lg border flex items-center justify-between ${
-                    adPreference === 'balanced'
-                      ? 'border-neutral-950 dark:border-white bg-neutral-100/80 dark:bg-neutral-900 font-bold'
-                      : 'border-neutral-200 dark:border-neutral-800 text-neutral-500'
-                  }`}
-                >
-                  <span>Balanced (${balancedCpm.toFixed(2)} CPM):</span>
-                  <span className="text-neutral-950 dark:text-white">
-                    ${estMonthlyBalancedUsd.toFixed(0)} · ₹{(estMonthlyBalancedUsd * usdtInrRate).toLocaleString('en-IN', { maximumFractionDigits: 0 })} (USDT)
-                  </span>
-                </div>
-                <div
-                  onClick={() => onChangeAdPreference('more')}
-                  className={`cursor-pointer p-3 rounded-lg border flex items-center justify-between ${
-                    adPreference === 'more'
-                      ? 'border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-950/30 font-bold'
-                      : 'border-neutral-200 dark:border-neutral-800 text-neutral-500'
-                  }`}
-                >
-                  <span>Max Ads (${maxAdsCpm.toFixed(2)} CPM):</span>
-                  <span className="text-blue-700 dark:text-blue-400">
-                    ${estMonthlyMaxAdsUsd.toFixed(0)} · ₹{(estMonthlyMaxAdsUsd * usdtInrRate).toLocaleString('en-IN', { maximumFractionDigits: 0 })} (USDT)
-                  </span>
                 </div>
               </div>
             </div>
@@ -1475,7 +1321,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-neutral-200 dark:border-neutral-800 pb-5">
             <div className="space-y-1.5 max-w-2xl">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-mono text-blue-700 dark:text-blue-400 font-semibold">
+                <span className="inline-flex items-center gap-1.5 text-xs font-mono text-blue-700 dark:text-sky-400 font-semibold">
                   <HelpCircle className="w-3.5 h-3.5 icon-anim-float" />
                   CREATOR KNOWLEDGE BASE · FREQUENTLY ASKED QUESTIONS
                 </span>
@@ -1485,7 +1331,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                 Common Creator Questions Answered
               </h2>
               <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                Everything you need to know about our 2 CPM plans (${balancedCpm.toFixed(2)} Balanced & ${maxAdsCpm.toFixed(2)} Max Ads), Lightning India UPI (₹ INR) & Global USDT withdrawals, and link monetization.
+                Everything you need to know about our official ${maxAdsCpm.toFixed(2)} CPM Creator Plan, Lightning India UPI (₹ INR) & Global USDT withdrawals, and link monetization.
               </p>
             </div>
 
@@ -1495,12 +1341,11 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
               className="min-h-[40px] px-4 py-2 rounded-lg color-graded-panel text-xs font-semibold text-neutral-900 dark:text-white inline-flex items-center justify-center gap-2 w-full md:w-auto shrink-0"
             >
               <span>Open Full Help Center & Support</span>
-              <ArrowRight className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <ArrowRight className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400" />
             </button>
           </div>
 
           <CreatorFaqAccordion
-            balancedCpm={balancedCpm}
             maxAdsCpm={maxAdsCpm}
             inrRate={inrRate}
             usdtInrRate={usdtInrRate}
@@ -1508,7 +1353,6 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
             usdtMinUsd={Number(customCodes?.usdtMinWithdrawalUsd ?? 20)}
             minWatchSeconds={Number(rules?.minWatchSeconds || 5)}
             onNavigate={onNavigate}
-            onChangeAdPreference={onChangeAdPreference}
           />
         </section>
       </div>
@@ -1835,13 +1679,13 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                   <div>
                     <p className="text-xs text-neutral-500">Creator Attribution</p>
                     <p className="text-sm font-bold text-neutral-950 dark:text-white">
-                      Arjun Mehta Studio (@arjunmehta)
+                      Verified ShareDabba Creator
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => onNavigate('creator-profile')}
-                    className="text-xs font-semibold text-blue-700 dark:text-blue-400 hover:underline whitespace-nowrap"
+                    className="text-xs font-semibold text-blue-700 dark:text-sky-400 hover:underline whitespace-nowrap"
                   >
                     View Profile →
                   </button>
@@ -1906,7 +1750,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                 </button>
               </div>
               {reportSuccess ? (
-                <p className="text-xs font-mono text-emerald-700 dark:text-emerald-400 py-4">
+                <p className="text-xs font-mono text-blue-700 dark:text-sky-400 py-4">
                   {reportSuccess}
                 </p>
               ) : (
@@ -1975,68 +1819,50 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
   // ---------------------------------------------------------------------------
   if (route === 'how-earnings-work' || route === 'features' || route === 'creator-program' || route === 'referral-program') {
     const monthlyViews = calcDailyViews * 30;
-    const balancedMonthlyUsd = (monthlyViews / 1000) * balancedCpm;
     const maxAdsMonthlyUsd = (monthlyViews / 1000) * maxAdsCpm;
 
     return (
       <div className="max-w-5xl mx-auto px-6 py-12 space-y-12">
         <div className="space-y-3 border-b border-neutral-200 dark:border-neutral-800 pb-6">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold">
-              SHAREDABBA 2-PLAN MONETIZATION SPECIFICATION
+            <p className="text-xs font-mono text-blue-600 dark:text-sky-400 font-semibold">
+              SHAREDABBA OFFICIAL ${maxAdsCpm.toFixed(2)} CPM MONETIZATION SPECIFICATION
             </p>
             <InrCurrencyNoteBadge amountLabel={`1 USD = ₹${inrRate} INR`} />
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-950 dark:text-white">
-            {route === 'how-earnings-work' && 'How Creator Earnings & Our 2 CPM Plans Work'}
+            {route === 'how-earnings-work' && `How Creator Earnings & Our $${maxAdsCpm.toFixed(2)} CPM Plan Work`}
             {route === 'features' && 'Platform Capabilities & Video Infrastructure'}
             {route === 'creator-program' && 'ShareDabba Creator Monetization Program'}
             {route === 'referral-program' && 'Creator Growth & 10% Referral Partner Program'}
           </h1>
           <p className="text-base text-neutral-600 dark:text-neutral-300 max-w-3xl">
-            ShareDabba operates with two transparent creator monetization plans — <strong>Balanced Plan (${balancedCpm.toFixed(2)} CPM)</strong> and <strong>Max Ads Plan (${maxAdsCpm.toFixed(2)} CPM)</strong> — backed by auditable double-entry wallet accounting.
+            ShareDabba operates with a unified <strong>${maxAdsCpm.toFixed(2)} CPM Creator Plan</strong> backed by auditable double-entry wallet accounting and instant India UPI & Global USDT payouts.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="p-6 rounded-xl color-graded-panel space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-neutral-950 dark:text-white">
-                Plan 01: Balanced Plan (${balancedCpm.toFixed(2)} Target CPM)
-              </h2>
-              <InrCurrencyNoteBadge amountLabel={`₹${(balancedCpm * inrRate).toFixed(0)} / 1k`} />
-            </div>
-            <p className="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 p-3 rounded">
-              Creator Earnings = (Eligible Views / 1,000) × ${balancedCpm.toFixed(2)} USD
-            </p>
-            <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
-              Single skippable pre-roll placement with zero mid-roll interruptions. Ideal for maximum viewer retention while earning a steady ${balancedCpm.toFixed(2)} per 1,000 verified views ({rules?.minWatchSeconds || 5}s minimum watch time).
-            </p>
+        <div className="p-6 rounded-xl color-graded-panel space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-neutral-950 dark:text-white">
+              Official ${maxAdsCpm.toFixed(2)} CPM Creator Plan
+            </h2>
+            <InrCurrencyNoteBadge amountLabel={`₹${(maxAdsCpm * inrRate).toFixed(0)} / 1k`} altAnim />
           </div>
-
-          <div className="p-6 rounded-xl color-graded-panel space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-neutral-950 dark:text-white">
-                Plan 02: Max Ads Plan (${maxAdsCpm.toFixed(2)} Target CPM)
-              </h2>
-              <InrCurrencyNoteBadge amountLabel={`₹${(maxAdsCpm * inrRate).toFixed(0)} / 1k`} altAnim />
-            </div>
-            <p className="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 p-3 rounded">
-              Creator Earnings = (Eligible Views / 1,000) × ${maxAdsCpm.toFixed(2)} USD
-            </p>
-            <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
-              Enables pre-roll plus eligible mid-roll VAST ad placements for maximum earning potential (+50% higher creator payout per 1,000 views). Switch between Balanced and Max Ads anytime.
-            </p>
-          </div>
+          <p className="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 p-3 rounded">
+            Creator Earnings = (Eligible Views / 1,000) × ${maxAdsCpm.toFixed(2)} USD
+          </p>
+          <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+            Enables pre-roll plus eligible mid-roll VAST 4.2 ad placements for maximum earning potential at ${maxAdsCpm.toFixed(2)} USD per 1,000 verified views ({rules?.minWatchSeconds || 5}s minimum watch time).
+          </p>
         </div>
 
-        {/* 2-Plan Interactive Calculator on Earnings Page */}
+        {/* Interactive Calculator on Earnings Page */}
         <div className="p-6 rounded-xl color-graded-panel space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-base font-bold text-neutral-950 dark:text-white">
-              2-Plan Monthly Earnings Calculator (${balancedCpm.toFixed(2)} Balanced vs ${maxAdsCpm.toFixed(2)} Max Ads)
+              Monthly Earnings Calculator (${maxAdsCpm.toFixed(2)} CPM Plan)
             </h3>
-            <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">
+            <span className="text-xs font-mono font-bold text-blue-600 dark:text-sky-400">
               {calcDailyViews.toLocaleString()} views/day ({monthlyViews.toLocaleString()}/mo)
             </span>
           </div>
@@ -2049,25 +1875,14 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
             onChange={(e) => setCalcDailyViews(Number(e.target.value))}
             className="w-full accent-blue-600 cursor-pointer"
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 space-y-1">
-              <p className="text-xs font-mono text-neutral-500">Balanced Plan (${balancedCpm.toFixed(2)} CPM)</p>
-              <p className="text-2xl font-bold font-mono text-neutral-950 dark:text-white">
-                ${balancedMonthlyUsd.toFixed(2)} USD / mo
-              </p>
-              <p className="text-xs font-mono text-emerald-700 dark:text-emerald-400">
-                ≈ ₹{(balancedMonthlyUsd * inrRate).toLocaleString('en-IN', { maximumFractionDigits: 0 })} INR (UPI) · {balancedMonthlyUsd.toFixed(2)} USDT
-              </p>
-            </div>
-            <div className="p-4 rounded-xl bg-blue-50/40 dark:bg-blue-950/30 border border-blue-500/40 space-y-1">
-              <p className="text-xs font-mono text-blue-700 dark:text-blue-300">Max Ads Plan (${maxAdsCpm.toFixed(2)} CPM)</p>
-              <p className="text-2xl font-bold font-mono text-blue-700 dark:text-blue-400">
-                ${maxAdsMonthlyUsd.toFixed(2)} USD / mo
-              </p>
-              <p className="text-xs font-mono text-emerald-700 dark:text-emerald-400">
-                ≈ ₹{(maxAdsMonthlyUsd * inrRate).toLocaleString('en-IN', { maximumFractionDigits: 0 })} INR (UPI) · {maxAdsMonthlyUsd.toFixed(2)} USDT
-              </p>
-            </div>
+          <div className="p-5 rounded-xl bg-sky-50/40 dark:bg-sky-950/30 border border-sky-400/40 space-y-1">
+            <p className="text-xs font-mono text-blue-700 dark:text-sky-300">Official Creator Plan (${maxAdsCpm.toFixed(2)} CPM)</p>
+            <p className="text-2xl font-bold font-mono text-blue-700 dark:text-sky-400">
+              ${maxAdsMonthlyUsd.toFixed(2)} USD / mo
+            </p>
+            <p className="text-xs font-mono text-neutral-700 dark:text-neutral-300">
+              ≈ ₹{(maxAdsMonthlyUsd * inrRate).toLocaleString('en-IN', { maximumFractionDigits: 0 })} INR (UPI) · {maxAdsMonthlyUsd.toFixed(2)} USDT
+            </p>
           </div>
         </div>
 
@@ -2108,9 +1923,9 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
           <button
             type="button"
             onClick={() => onNavigate('pricing')}
-            className="px-5 py-2.5 rounded-lg border border-blue-500/40 text-xs font-semibold"
+            className="px-5 py-2.5 rounded-lg border border-sky-400/45 text-xs font-semibold"
           >
-            Compare $2.00 & $3.00 CPM Plans
+            View ${maxAdsCpm.toFixed(2)} CPM Plan
           </button>
         </div>
       </div>
@@ -2118,24 +1933,24 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
   }
 
   // ---------------------------------------------------------------------------
-  // 5. CPM MONETIZATION PLANS PAGE (ONLY 2 PLANS: $2.00 BALANCED & $3.00 MAX ADS)
+  // 5. CPM MONETIZATION PLAN PAGE (OFFICIAL $3.00 CPM PLAN)
   // ---------------------------------------------------------------------------
   if (route === 'pricing') {
     return (
-      <div className="max-w-7xl mx-auto px-6 py-12 space-y-10">
+      <div className="max-w-5xl mx-auto px-6 py-12 space-y-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-neutral-200 dark:border-neutral-800 pb-6">
           <div className="space-y-2 max-w-2xl">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold">
-                OFFICIAL CREATOR MONETIZATION PLANS · ZERO STORAGE FEES
+              <p className="text-xs font-mono text-blue-600 dark:text-sky-400 font-semibold">
+                OFFICIAL CREATOR MONETIZATION PLAN · ZERO STORAGE FEES
               </p>
               <InrCurrencyNoteBadge amountLabel={`1 USD = ₹${inrRate} INR`} />
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
-              Only 2 Creator Plans: Balanced (${balancedCpm.toFixed(2)} CPM) & Max Ads (${maxAdsCpm.toFixed(2)} CPM)
+              Official ${maxAdsCpm.toFixed(2)} CPM Creator Plan
             </h1>
             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-              No complicated video storage tiers or monthly subscription fees. Every creator gets full cloud hosting, malware scanning, QR share links, and instant switching between our 2 CPM monetization plans.
+              No complicated video storage tiers or monthly subscription fees. Every creator gets full cloud hosting, malware scanning, QR share links, and our unified ${maxAdsCpm.toFixed(2)} CPM monetization rate.
             </p>
           </div>
 
@@ -2149,129 +1964,57 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
           </button>
         </div>
 
-        {/* Strictly 2 Monetization Plans */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Plan 1: Balanced Plan ($2.00 CPM) */}
-          <div className="liquid-retina-card">
-            <div className="liquid-retina-inner bg-white dark:bg-neutral-950 p-6 sm:p-8 h-full flex flex-col justify-between space-y-6">
-              <div className="liquid-retina-glow" aria-hidden="true" />
-              <div className="relative z-10 space-y-4">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">
-                    PLAN 01 · BALANCED PLAN
+        {/* Official $3.00 CPM Plan Card */}
+        <div className="liquid-retina-card">
+          <div className="liquid-retina-inner bg-white dark:bg-neutral-950 p-6 sm:p-8 flex flex-col justify-between space-y-6">
+            <div className="liquid-retina-glow" aria-hidden="true" />
+            <div className="relative z-10 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-mono font-bold text-blue-600 dark:text-sky-400">
+                  OFFICIAL PLAN · ${maxAdsCpm.toFixed(2)} CPM RATE
+                </span>
+                <InrCurrencyNoteBadge
+                  amountLabel={`₹${(maxAdsCpm * inrRate).toFixed(0)} INR / 1k Views`}
+                  altAnim
+                />
+              </div>
+              <div className="flex items-baseline justify-between border-b border-neutral-200 dark:border-neutral-800 pb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-neutral-950 dark:text-white">
+                    ${maxAdsCpm.toFixed(2)} CPM Creator Plan
+                  </h2>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    Maximum earning potential · Pre-roll + Mid-roll slots
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-4xl font-bold font-mono tabular-nums text-neutral-950 dark:text-white">
+                    ${maxAdsCpm.toFixed(2)}
                   </span>
-                  <InrCurrencyNoteBadge
-                    amountLabel={`₹${(balancedCpm * inrRate).toFixed(0)} INR / 1k Views`}
-                  />
-                </div>
-                <div className="flex items-baseline justify-between border-b border-neutral-200 dark:border-neutral-800 pb-4">
-                  <div>
-                    <h2 className="text-2xl font-bold text-neutral-950 dark:text-white">
-                      Balanced Plan
-                    </h2>
-                    <p className="text-xs text-neutral-500 mt-0.5">
-                      Clean viewer experience · Single pre-roll ad slot
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-4xl font-bold font-mono tabular-nums text-neutral-950 dark:text-white">
-                      ${balancedCpm.toFixed(2)}
-                    </span>
-                    <span className="block text-[11px] font-mono text-neutral-500">
-                      eCPM / 1,000 views
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-2.5 text-xs text-neutral-700 dark:text-neutral-300 font-mono">
-                  <p>· Single skippable VAST pre-roll ad slot</p>
-                  <p>· Zero mid-roll video interruptions</p>
-                  <p>· 10,000 views = ${(10 * balancedCpm).toFixed(2)} USD (₹{(10 * balancedCpm * inrRate).toFixed(0)} INR)</p>
-                  <p>· Instant India UPI ($5 min) & Global USDT ($20 min) payouts</p>
+                  <span className="block text-[11px] font-mono text-neutral-500">
+                    eCPM / 1,000 views
+                  </span>
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onChangeAdPreference('balanced');
-                  onNavigate('dashboard');
-                }}
-                className={`relative z-10 min-h-[44px] w-full py-2.5 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-2 ${
-                  adPreference === 'balanced'
-                    ? 'bg-blue-700 text-white'
-                    : 'bg-neutral-950 dark:bg-white text-white dark:text-neutral-950'
-                }`}
-              >
-                <Check className="w-4 h-4" />
-                <span>
-                  {adPreference === 'balanced'
-                    ? `Active: Balanced Plan ($${balancedCpm.toFixed(2)} CPM) — Open Studio`
-                    : `Activate Balanced Plan ($${balancedCpm.toFixed(2)} CPM)`}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Plan 2: Max Ads Plan ($3.00 CPM) */}
-          <div className="liquid-retina-card">
-            <div className="liquid-retina-inner bg-white dark:bg-neutral-950 p-6 sm:p-8 h-full flex flex-col justify-between space-y-6">
-              <div className="liquid-retina-glow" aria-hidden="true" />
-              <div className="relative z-10 space-y-4">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
-                    PLAN 02 · MAX ADS PLAN
-                  </span>
-                  <InrCurrencyNoteBadge
-                    amountLabel={`₹${(maxAdsCpm * inrRate).toFixed(0)} INR / 1k Views`}
-                    altAnim
-                  />
-                </div>
-                <div className="flex items-baseline justify-between border-b border-neutral-200 dark:border-neutral-800 pb-4">
-                  <div>
-                    <h2 className="text-2xl font-bold text-neutral-950 dark:text-white">
-                      Max Ads Plan
-                    </h2>
-                    <p className="text-xs text-neutral-500 mt-0.5">
-                      Maximum earning potential · Pre-roll + Mid-roll slots
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-4xl font-bold font-mono tabular-nums text-neutral-950 dark:text-white">
-                      ${maxAdsCpm.toFixed(2)}
-                    </span>
-                    <span className="block text-[11px] font-mono text-neutral-500">
-                      eCPM / 1,000 views
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-2.5 text-xs text-neutral-700 dark:text-neutral-300 font-mono">
-                  <p>· Pre-roll + eligible mid-roll VAST ad placements</p>
-                  <p>· Priority high-bid programmatic ad demand (+50% yield)</p>
-                  <p>· 10,000 views = ${(10 * maxAdsCpm).toFixed(2)} USD (₹{(10 * maxAdsCpm * inrRate).toFixed(0)} INR)</p>
-                  <p>· Instant India UPI ($5 min) & Global USDT ($20 min) payouts</p>
-                </div>
+              <div className="space-y-2.5 text-xs text-neutral-700 dark:text-neutral-300 font-mono">
+                <p>· Pre-roll + eligible mid-roll VAST ad placements</p>
+                <p>· Priority high-bid programmatic ad demand</p>
+                <p>· 10,000 views = ${(10 * maxAdsCpm).toFixed(2)} USD (₹{(10 * maxAdsCpm * inrRate).toFixed(0)} INR)</p>
+                <p>· Instant India UPI ($5 min) & Global USDT ($20 min) payouts</p>
               </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onChangeAdPreference('more');
-                  onNavigate('dashboard');
-                }}
-                className={`relative z-10 min-h-[44px] w-full py-2.5 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-2 ${
-                  adPreference === 'more'
-                    ? 'bg-blue-700 text-white'
-                    : 'bg-neutral-950 dark:bg-white text-white dark:text-neutral-950'
-                }`}
-              >
-                <Zap className="w-4 h-4 text-amber-400" />
-                <span>
-                  {adPreference === 'more'
-                    ? `Active: Max Ads Plan ($${maxAdsCpm.toFixed(2)} CPM) — Open Studio`
-                    : `Activate Max Ads Plan ($${maxAdsCpm.toFixed(2)} CPM)`}
-                </span>
-              </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                onChangeAdPreference('more');
+                onNavigate('dashboard');
+              }}
+              className="relative z-10 min-h-[44px] w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold inline-flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Zap className="w-4 h-4 text-sky-300" />
+              <span>Active: Official ${maxAdsCpm.toFixed(2)} CPM Plan — Open Studio</span>
+            </button>
           </div>
         </div>
       </div>
@@ -2305,7 +2048,6 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
         </div>
 
         <CreatorFaqAccordion
-          balancedCpm={balancedCpm}
           maxAdsCpm={maxAdsCpm}
           inrRate={inrRate}
           usdtInrRate={usdtInrRate}
@@ -2313,7 +2055,6 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
           usdtMinUsd={Number(customCodes?.usdtMinWithdrawalUsd ?? 20)}
           minWatchSeconds={Number(rules?.minWatchSeconds || 5)}
           onNavigate={onNavigate}
-          onChangeAdPreference={onChangeAdPreference}
         />
 
         <div className="space-y-6 text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed">
@@ -2328,17 +2069,17 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
 
           <div className="p-5 rounded-xl color-graded-panel space-y-2">
             <h2 className="font-bold text-neutral-950 dark:text-white">
-              2. Creator Earnings ($2.00 Balanced & $3.00 Max Ads) & UPI Payout Verification
+              2. Creator Earnings (${maxAdsCpm.toFixed(2)} CPM Plan) & UPI Payout Verification
             </h2>
             <p className="text-xs leading-relaxed">
-              ShareDabba records only verified VAST advertising events and qualified playback sessions under your active plan (${balancedCpm.toFixed(2)} Balanced or ${maxAdsCpm.toFixed(2)} Max Ads). Withdrawals require a verified UPI ID ($5.00 USD min) or USDT wallet ($20.00 USD min).
+              ShareDabba records only verified VAST advertising events and qualified playback sessions under the official ${maxAdsCpm.toFixed(2)} CPM plan. Withdrawals require a verified UPI ID ($5.00 USD min) or USDT wallet ($20.00 USD min).
             </p>
           </div>
         </div>
 
         {/* Interactive Support Ticket Component (saves to support_tickets table) */}
         <SupportTicket
-          defaultEmail={sessionAccountEmail || 'arjun.mehta@sharedabba.in'}
+          defaultEmail={sessionAccountEmail || ''}
           defaultCategory={isDmcaPage ? 'Copyright' : ''}
           title={isDmcaPage ? 'Submit Formal Copyright / DMCA Support Ticket' : 'Submit a Support Ticket'}
           subtitle="Send a message with an optional category dropdown (Technical, Payout, Copyright). All submissions are saved to the support_tickets database table."
@@ -2372,17 +2113,10 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
 
       if (normalized === 'rudraxsikkim@gmail.com') {
         onSessionAccountLogin('admin_super_01', 'rudraxsikkim@gmail.com', 'Rudra (Super Admin)');
-        onNavigate('admin');
+        onNavigate('dashboard');
       } else {
-        const resolvedUid =
-          normalized === 'arjun.mehta@sharedabba.in'
-            ? 'creator_arjun_01'
-            : `creator_${normalized.replace(/[^a-z0-9]/g, '_')}`;
-        const resolvedName =
-          (nameInput || '').trim() ||
-          (normalized === 'arjun.mehta@sharedabba.in'
-            ? 'Arjun Mehta Studio'
-            : normalized.split('@')[0]);
+        const resolvedUid = `creator_${normalized.replace(/[^a-z0-9]/g, '_')}`;
+        const resolvedName = (nameInput || '').trim() || normalized.split('@')[0];
         onSessionAccountLogin(resolvedUid, normalized, resolvedName);
         onNavigate('dashboard');
       }
@@ -2397,11 +2131,11 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
             <div className="relative z-10 space-y-6">
               <div className="space-y-1.5 border-b border-neutral-200 dark:border-neutral-800 pb-4">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-mono text-blue-600 dark:text-blue-400 font-bold">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-mono text-blue-600 dark:text-sky-400 font-bold">
                     <GoogleGIcon className="w-3.5 h-3.5" />
                     <span>FIREBASE GOOGLE AUTH & ACCOUNT PORTAL</span>
                   </span>
-                  <span className="px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-mono text-[10px] font-bold">
+                  <span className="px-2 py-0.5 rounded border border-sky-400/40 bg-sky-500/10 text-blue-700 dark:text-sky-300 font-mono text-[10px] font-bold">
                     OAUTH 2.0 VERIFIED
                   </span>
                 </div>
@@ -2413,7 +2147,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                 </h1>
                 <p className="text-xs text-neutral-600 dark:text-neutral-400">
                   {route === 'register'
-                    ? 'Sign up with your Google account to activate $2.00 Balanced & $3.00 Max Ads link monetization and instant UPI / USDT payouts.'
+                    ? `Sign up with your Google account to activate $${maxAdsCpm.toFixed(2)} CPM link monetization and instant UPI / USDT payouts.`
                     : 'Authenticate with your Google account or registered email credentials.'}
                 </p>
               </div>
@@ -2435,11 +2169,7 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                       </span>
                       <span
                         id="auth-role-binding-badge"
-                        className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold ${
-                          isTypedSuperAdmin
-                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40'
-                            : 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30'
-                        }`}
+                        className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-sky-500/15 text-blue-700 dark:text-sky-300 border border-sky-400/40"
                       >
                         {isTypedSuperAdmin ? 'SUPER ADMIN BOUND' : 'NORMAL CREATOR ACCOUNT'}
                       </span>
@@ -2463,14 +2193,14 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                         </span>
                       </span>
                       <span className="px-2.5 py-1 rounded-md bg-blue-600 text-white text-[11px] font-mono font-semibold shrink-0">
-                        {isTypedSuperAdmin ? 'Open /admin →' : 'Open Studio →'}
+                        Open Studio →
                       </span>
                     </button>
 
                     <p className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400 leading-relaxed">
                       {isTypedSuperAdmin ? (
-                        <span className="text-amber-600 dark:text-amber-400 font-semibold">
-                          ✓ Verified Super Admin Email ({cleanTypedEmail}): Will authenticate directly into the Super Admin Governance Portal (/admin).
+                        <span className="text-blue-600 dark:text-sky-400 font-semibold">
+                          ✓ Verified Super Admin Email ({cleanTypedEmail}): Will authenticate into your Dashboard with Super Admin Portal access.
                         </span>
                       ) : (
                         <span>
@@ -2643,10 +2373,10 @@ export const PublicPages: React.FC<PublicPagesProps> = ({
                 VERIFIED SHAREDABBA CREATOR STUDIO
               </p>
               <h1 className="text-2xl sm:text-3xl font-bold text-neutral-950 dark:text-white">
-                Arjun Mehta Studio (@arjunmehta)
+                ShareDabba Creator Studio
               </h1>
               <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 max-w-2xl">
-                Independent architectural filmmaker, industrial hardware reviewer, and open-source educator based in Bengaluru.
+                Public creator releases, monetized videos, and shared media packages hosted on ShareDabba.
               </p>
             </div>
             <div className="relative z-10 flex flex-col sm:items-end gap-2">

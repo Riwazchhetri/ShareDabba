@@ -105,13 +105,13 @@ export const ShareDabbaPlayer: React.FC<ShareDabbaPlayerProps> = ({
     }
 
     // Center studio focal frame
-    ctx.strokeStyle = adActive ? '#F59E0B' : '#1D4ED8';
+    ctx.strokeStyle = adActive ? '#38BDF8' : '#1D4ED8';
     ctx.lineWidth = 2;
     const pulse = Math.sin(currentTime * 1.8) * 14;
     ctx.strokeRect(w * 0.22 - pulse * 0.5, h * 0.2, w * 0.56 + pulse, h * 0.56);
 
     // Waveform bars at bottom of frame
-    ctx.fillStyle = adActive ? '#F59E0B' : '#3B82F6';
+    ctx.fillStyle = adActive ? '#38BDF8' : '#3B82F6';
     for (let i = 0; i < 36; i++) {
       const barH =
         isPlaying || adActive
@@ -274,8 +274,8 @@ export const ShareDabbaPlayer: React.FC<ShareDabbaPlayerProps> = ({
               onClick={() => setShowAdPrefPanel((s) => !s)}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border border-neutral-700 transition-colors whitespace-nowrap"
             >
-              <Sliders className="w-3.5 h-3.5 text-blue-400" />
-              <span>Plan: {adPreference === 'more' ? 'Max Ads ($3.00)' : 'Balanced ($2.00)'}</span>
+              <Sliders className="w-3.5 h-3.5 text-sky-400" />
+              <span>Plan: $3.00 CPM</span>
             </button>
             <button
               type="button"
@@ -313,8 +313,8 @@ export const ShareDabbaPlayer: React.FC<ShareDabbaPlayerProps> = ({
           {adActive && (
             <div className="absolute inset-0 bg-black/90 flex flex-col justify-between p-6 z-20">
               <div className="flex items-center justify-between">
-                <div className="text-xs font-mono text-amber-400">
-                  Advertisement · VAST 4.2 Verified Placement ({adPreference.toUpperCase()} MODE)
+                <div className="text-xs font-mono text-sky-400">
+                  Advertisement · VAST 4.2 Verified Placement ($3.00 CPM PLAN)
                 </div>
                 <div className="text-xs font-mono tabular-nums text-neutral-300">
                   {adCountdown > 0 ? `Ad ends in ${adCountdown}s` : 'Eligible to skip or continue'}
@@ -333,7 +333,7 @@ export const ShareDabbaPlayer: React.FC<ShareDabbaPlayerProps> = ({
 
               <div className="flex items-center justify-between border-t border-neutral-800 pt-4">
                 <span className="text-xs text-neutral-400">
-                  Target Creator Rate: ${rules?.targetCpmUsd || '2.00'} eCPM ({rules?.activeMode === 'revenue_share' ? `${rules?.revenueSharePercent}% RevShare` : 'Fixed Creator CPM'})
+                  Target Creator Rate: ${rules?.targetCpmUsd || '3.00'} eCPM ({rules?.activeMode === 'revenue_share' ? `${rules?.revenueSharePercent}% RevShare` : 'Fixed Creator CPM'})
                 </span>
                 <button
                   type="button"
@@ -506,10 +506,10 @@ export const ShareDabbaPlayer: React.FC<ShareDabbaPlayerProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <h4 className="text-sm font-semibold text-neutral-900 dark:text-white">
-                Active Monetization Plan ($2.00 Balanced vs $3.00 Max Ads)
+                Official Monetization Plan ($3.00 CPM)
               </h4>
               <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                Choose between Balanced Plan ($2.00 CPM) for zero mid-roll interruptions or Max Ads Plan ($3.00 CPM) for maximum creator earnings.
+                Every eligible verified video view is monetized under the unified $3.00 CPM Creator Plan.
               </p>
             </div>
             <button
@@ -521,33 +521,14 @@ export const ShareDabbaPlayer: React.FC<ShareDabbaPlayerProps> = ({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(['balanced', 'more'] as AdPreferenceMode[]).map((mode) => {
-              const info = getAdFrequencyCapForPreference(mode);
-              const active = adPreference === mode;
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => onChangeAdPreference(mode)}
-                  className={`p-3.5 rounded-lg border text-left transition-colors ${
-                    active
-                      ? 'border-blue-600 dark:border-blue-400 bg-blue-50/40 dark:bg-blue-950/30'
-                      : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-400 bg-white dark:bg-neutral-950'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-xs font-bold text-neutral-900 dark:text-white">
-                    <span>
-                      {mode === 'more' ? 'Max Ads Plan ($3.00 CPM)' : 'Balanced Plan ($2.00 CPM)'}
-                    </span>
-                    {active && <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
-                  </div>
-                  <p className="mt-1 text-[11px] text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                    {info.description}
-                  </p>
-                </button>
-              );
-            })}
+          <div className="p-3.5 rounded-lg border border-sky-500/40 bg-sky-50/40 dark:bg-sky-950/30 text-left">
+            <div className="flex items-center justify-between text-xs font-bold text-neutral-900 dark:text-white">
+              <span>Official $3.00 CPM Plan</span>
+              <Check className="w-4 h-4 text-sky-500" />
+            </div>
+            <p className="mt-1 text-[11px] text-neutral-600 dark:text-neutral-400 leading-relaxed">
+              {prefCap.description}
+            </p>
           </div>
         </div>
       )}

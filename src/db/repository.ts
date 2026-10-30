@@ -37,6 +37,11 @@ import {
   validateUploadFile,
   CalculationMode,
 } from '../utils/monetization.ts';
+import {
+  createSignedPlaybackToken,
+  verifySignedPlaybackToken,
+  toCanonicalVideoDto,
+} from '../utils/playback-security.ts';
 
 let seedPromise: Promise<void> | null = null;
 
@@ -51,10 +56,10 @@ export async function ensurePlatformSeeded(): Promise<void> {
         return;
       }
 
-      // 1. Seed Monetization Rules ($2.00 target eCPM, 65% rev share, $5.00 min withdrawal, 84.20 INR rate)
+      // 1. Seed Monetization Rules ($3.00 target eCPM, 65% rev share, $5.00 min withdrawal, 84.20 INR rate)
       await db.insert(monetizationRules).values({
         activeMode: 'fixed_cpm',
-        targetCpmUsd: '2.00',
+        targetCpmUsd: '3.00',
         revenueSharePercent: '65.00',
         minWatchSeconds: 5,
         minWithdrawalUsd: '5.00',
@@ -94,481 +99,14 @@ export async function ensurePlatformSeeded(): Promise<void> {
         { roleName: 'super_admin', permissionKey: 'platform:configure_all' },
       ]);
 
-      // 3. Seed Primary Creator & Super Admin Users
-      const creatorRes = await db
-        .insert(users)
-        .values({
-          uid: 'creator_arjun_01',
-          email: 'arjun.mehta@sharedabba.in',
-          username: 'arjunmehta',
-          displayName: 'Arjun Mehta Studio',
-          role: 'creator',
-          status: 'active',
-          plan: 'creator',
-          emailVerified: true,
-          twoFactorEnabled: true,
-          kycVerified: true,
-          upiId: 'arjunmehta@okhdfcbank',
-          upiVerified: true,
-          adPreference: 'balanced',
-          storageUsedBytes: 3489660928, // ~3.25 GB
-          storageLimitBytes: 107374182400, // 100 GB Creator Plan
-          referralCode: 'ARJUN-SD26',
-        })
-        .onConflictDoUpdate({
-          target: users.uid,
-          set: { email: 'arjun.mehta@sharedabba.in' },
-        })
-        .returning();
-
-      const adminRes = await db
-        .insert(users)
-        .values({
-          uid: 'admin_super_01',
-          email: 'rudraxsikkim@gmail.com',
-          username: 'rudraadmin',
-          displayName: 'Rudra — Platform Governance',
-          role: 'super_admin',
-          status: 'active',
-          plan: 'enterprise',
-          emailVerified: true,
-          twoFactorEnabled: true,
-          kycVerified: true,
-          upiId: 'rudra@okaxis',
-          upiVerified: true,
-          adPreference: 'balanced',
-          storageUsedBytes: 1288490188,
-          storageLimitBytes: 1099511627776, // 1 TB
-          referralCode: 'RUDRA-VIP',
-        })
-        .onConflictDoUpdate({
-          target: users.uid,
-          set: { email: 'rudraxsikkim@gmail.com' },
-        })
-        .returning();
-
-      const creator = creatorRes[0];
-      const adminUser = adminRes[0];
-
-      await db.insert(userProfiles).values([
-        {
-          userId: creator.id,
-          bio: 'Independent architectural filmmaker, industrial hardware reviewer, and open-source educator based in Bengaluru.',
-          website: 'https://arjunstudio.in',
-          country: 'IN',
-          taxId: 'PAN-VERIFIED-9921A',
-          ageVerified: true,
-        },
-        {
-          userId: adminUser.id,
-          bio: 'ShareDabba Principal Systems & Trust Operations.',
-          website: 'https://sharedabba.com',
-          country: 'IN',
-          taxId: 'CORP-IN-8810',
-          ageVerified: true,
-        },
-      ]);
-
-      // 4. Seed Folders
-      const folderInserted = await db
-        .insert(folders)
-        .values([
-          { userId: creator.id, name: '4K Documentary Masters' },
-          { userId: creator.id, name: 'Engineering CAD & PDFs' },
-          { userId: creator.id, name: 'Android Builds & Releases' },
-        ])
-        .returning();
-
-      // 5. Seed Files & Videos
-      const seededFiles = await db
-        .insert(files)
-        .values([
-          {
-            slug: 'nordic-brutalist-pavilion-4k',
-            userId: creator.id,
-            folderId: folderInserted[0].id,
-            title: 'Nordic Brutalist Pavilion — Architectural Monograph (4K 60fps)',
-            description:
-              'Full 14-minute architectural study exploring poured concrete acoustics, natural fjord light refraction, and structural cantilevers.',
-            filename: 'nordic_brutalist_pavilion_master_4k.mp4',
-            mimeType: 'video/mp4',
-            fileType: 'video',
-            sizeBytes: 1420820480,
-            durationSeconds: 842,
-            resolution: '4K (3840x2160)',
-            visibility: 'public',
-            allowDownload: true,
-            category: 'Architecture & Design',
-            tags: 'architecture,brutalism,cinema,monograph',
-            status: 'ready',
-            malwareScanStatus: 'clean',
-            transcodeStatus: 'completed',
-            storageKey: 's3://sharedabba-media-prod/u1/nordic_brutalist_pavilion_master_4k.mp4',
-            cdnUrl: '/api/stream/nordic-brutalist-pavilion-4k',
-            thumbnailType: 'architecture',
-            viewsCount: 18450,
-            monetizedViewsCount: 14200,
-            estimatedEarningsUsd: '28.4000',
-          },
-          {
-            slug: 'precision-cnc-industrial-design-workflow',
-            userId: creator.id,
-            folderId: folderInserted[0].id,
-            title: '5-Axis CNC Anodized Aluminum Enclosure Prototyping Breakdown',
-            description:
-              'Complete engineering walkthrough from tolerances and surface finish specs to thermal dissipation benchmarks.',
-            filename: 'precision_cnc_enclosure_workflow.mp4',
-            mimeType: 'video/mp4',
-            fileType: 'video',
-            sizeBytes: 980412000,
-            durationSeconds: 615,
-            resolution: '1080p60',
-            visibility: 'public',
-            allowDownload: true,
-            category: 'Engineering & Hardware',
-            tags: 'hardware,cnc,industrial-design,machining',
-            status: 'ready',
-            malwareScanStatus: 'clean',
-            transcodeStatus: 'completed',
-            storageKey: 's3://sharedabba-media-prod/u1/precision_cnc_enclosure_workflow.mp4',
-            cdnUrl: '/api/stream/precision-cnc-industrial-design-workflow',
-            thumbnailType: 'industrial',
-            viewsCount: 11300,
-            monetizedViewsCount: 8950,
-            estimatedEarningsUsd: '17.9000',
-          },
-          {
-            slug: 'cinema-rig-color-pipeline-lut-pack',
-            userId: creator.id,
-            folderId: folderInserted[1].id,
-            title: 'Monochrome Leica & Cinema DNG Color Science Specification + LUT Archive',
-            description:
-              'Technical whitepaper (PDF) and 32-bit floating point cube LUT bundle for documentary filmmakers.',
-            filename: 'cinema_color_science_bundle_v2.zip',
-            mimeType: 'application/zip',
-            fileType: 'archive',
-            sizeBytes: 412090000,
-            durationSeconds: 0,
-            resolution: 'Archive Bundle',
-            visibility: 'public',
-            allowDownload: true,
-            category: 'Filmmaking & Assets',
-            tags: 'luts,color-grading,pdf,archive',
-            status: 'ready',
-            malwareScanStatus: 'clean',
-            transcodeStatus: 'completed',
-            storageKey: 's3://sharedabba-media-prod/u1/cinema_color_science_bundle_v2.zip',
-            cdnUrl: '/api/stream/cinema-rig-color-pipeline-lut-pack',
-            thumbnailType: 'cinema',
-            viewsCount: 6840,
-            monetizedViewsCount: 5100,
-            estimatedEarningsUsd: '10.2000',
-          },
-          {
-            slug: 'acoustic-dsp-field-recorder-companion-apk',
-            userId: creator.id,
-            folderId: folderInserted[2].id,
-            title: 'FieldMonitor DSP v1.4.2 Android Companion (Signed APK)',
-            description:
-              'Low-latency USB-C audio spectrum analyzer and timecode sync utility for Android field recorders. Verified SHA-256 signature.',
-            filename: 'fieldmonitor-dsp-v1.4.2-release.apk',
-            mimeType: 'application/vnd.android.package-archive',
-            fileType: 'apk',
-            sizeBytes: 48200100,
-            durationSeconds: 0,
-            resolution: 'Android ARM64 APK',
-            visibility: 'unlisted',
-            allowDownload: true,
-            category: 'Software & Builds',
-            tags: 'android,apk,audio,dsp',
-            status: 'ready',
-            malwareScanStatus: 'clean',
-            transcodeStatus: 'completed',
-            storageKey: 's3://sharedabba-media-prod/u1/fieldmonitor-dsp-v1.4.2-release.apk',
-            cdnUrl: '/api/stream/acoustic-dsp-field-recorder-companion-apk',
-            thumbnailType: 'apk',
-            viewsCount: 3420,
-            monetizedViewsCount: 2450,
-            estimatedEarningsUsd: '4.9000',
-          },
-        ])
-        .returning();
-
-      for (const f of seededFiles) {
-        if (f.fileType === 'video') {
-          await db.insert(videos).values({
-            fileId: f.id,
-            codec: 'H.264 High@L5.1 / AAC-LC',
-            bitrateKbps: 6800,
-            fps: 60,
-            qualitiesJson: JSON.stringify(['4K', '1080p', '720p', '480p']),
-            captionsAvailable: true,
-            vastEnabled: true,
-            preRollEnabled: true,
-            midRollEnabled: f.durationSeconds > 600,
-            postRollEnabled: false,
-          });
-        }
-        await db.insert(videoProcessingJobs).values({
-          fileId: f.id,
-          jobType: f.fileType === 'video' ? 'transcode_hls' : 'malware_scan',
-          status: 'completed',
-          progressPercent: 100,
-          workerNode: 'worker-asia-se1-02',
-        });
-      }
-
-      // 6. Seed Wallet Account & Immutable Ledger
-      await db.insert(walletAccounts).values({
-        userId: creator.id,
-        availableBalanceUsd: '37.4000',
-        pendingBalanceUsd: '12.0000',
-        lifetimeEarnedUsd: '61.4000',
-        lifetimeWithdrawnUsd: '12.0000',
-        currency: 'USD',
-      });
-
-      await db.insert(walletAccounts).values({
-        userId: adminUser.id,
-        availableBalanceUsd: '145.0000',
-        pendingBalanceUsd: '0.0000',
-        lifetimeEarnedUsd: '145.0000',
-        lifetimeWithdrawnUsd: '0.0000',
-        currency: 'USD',
-      });
-
-      await db.insert(walletLedger).values([
-        {
-          ledgerUuid: 'led_20261022_001',
-          userId: creator.id,
-          entryType: 'ad_earning_credit',
-          amountUsd: '28.4000',
-          balanceAfterUsd: '28.4000',
-          balanceBucket: 'available',
-          referenceType: 'file_earnings_batch',
-          referenceId: String(seededFiles[0].id),
-          description: 'Finalized CPM earnings: 14,200 verified monetized views @ $2.00 eCPM (Nordic Brutalist Pavilion)',
-          createdByUid: 'system_settlement',
-        },
-        {
-          ledgerUuid: 'led_20261024_002',
-          userId: creator.id,
-          entryType: 'ad_earning_credit',
-          amountUsd: '17.9000',
-          balanceAfterUsd: '46.3000',
-          balanceBucket: 'available',
-          referenceType: 'file_earnings_batch',
-          referenceId: String(seededFiles[1].id),
-          description: 'Finalized CPM earnings: 8,950 verified monetized views @ $2.00 eCPM (5-Axis CNC Workflow)',
-          createdByUid: 'system_settlement',
-        },
-        {
-          ledgerUuid: 'led_20261025_003',
-          userId: creator.id,
-          entryType: 'withdrawal_paid',
-          amountUsd: '-12.0000',
-          balanceAfterUsd: '34.3000',
-          balanceBucket: 'available',
-          referenceType: 'withdrawal_request',
-          referenceId: 'wd_req_initial_01',
-          description: 'UPI Payout settled to arjunmehta@okhdfcbank (₹1,010.40 INR via RazorpayX UTR 629811049218)',
-          createdByUid: 'finance_webhook',
-        },
-        {
-          ledgerUuid: 'led_20261027_004',
-          userId: creator.id,
-          entryType: 'referral_bonus',
-          amountUsd: '3.1000',
-          balanceAfterUsd: '37.4000',
-          balanceBucket: 'available',
-          referenceType: 'referral_code',
-          referenceId: 'ARJUN-SD26',
-          description: '10% Creator Partner referral commission from 4 verified active creators',
-          createdByUid: 'system_settlement',
-        },
-      ]);
-
-      // 7. Seed Withdrawal Requests & Payout Transactions
-      const wdPaid = await db
-        .insert(withdrawalRequests)
-        .values({
-          requestUuid: 'wd_req_initial_01',
-          idempotencyKey: 'idem_seed_2026_01',
-          userId: creator.id,
-          amountUsd: '12.0000',
-          conversionRateInr: '84.20',
-          feeUsd: '0.0000',
-          netPayoutInr: '1010.40',
-          payoutMethod: 'UPI',
-          destinationUpiId: 'arjunmehta@okhdfcbank',
-          status: 'paid',
-          verificationStatus: 'verified',
-          fraudRiskScore: 2,
-          adminReviewerUid: 'admin_super_01',
-          adminNote: 'Verified creator traffic & RazorpayX IMPS/UPI webhook confirmed.',
-          providerReference: 'UTR-629811049218',
-        })
-        .returning();
-
-      await db.insert(payoutTransactions).values({
-        withdrawalRequestId: wdPaid[0].id,
-        providerName: 'RazorpayX UPI Payouts',
-        providerTxId: 'pout_Rx991028412',
-        status: 'processed',
-        webhookVerified: true,
-        rawResponseJson: JSON.stringify({
-          utr: '629811049218',
-          mode: 'UPI',
-          vpa: 'arjunmehta@okhdfcbank',
-          amount_paise: 101040,
-        }),
-      });
-
-      await db.insert(withdrawalRequests).values({
-        requestUuid: 'wd_req_pending_02',
-        idempotencyKey: 'idem_seed_2026_02',
-        userId: creator.id,
-        amountUsd: '8.5000',
-        conversionRateInr: '84.20',
-        feeUsd: '0.0000',
-        netPayoutInr: '715.70',
-        payoutMethod: 'UPI',
-        destinationUpiId: 'arjunmehta@okhdfcbank',
-        status: 'under_review',
-        verificationStatus: 'verified',
-        fraudRiskScore: 5,
-        adminNote: 'Queued for Finance Administrator approval or webhook confirmation.',
-      });
-
-      // 8. Seed Referral Code & Events
-      const refCodeRow = await db
-        .insert(referralCodes)
-        .values({
-          userId: creator.id,
-          code: 'ARJUN-SD26',
-          clicksCount: 248,
-          registrationsCount: 19,
-          eligibleReferralsCount: 11,
-          totalEarnedUsd: '3.1000',
-          campaignName: 'Creator Launch Partner 10%',
-        })
-        .returning();
-
-      await db.insert(referralEvents).values([
-        {
-          referralCodeId: refCodeRow[0].id,
-          referrerUserId: creator.id,
-          referredUserEmail: 'kiran.films@studio.in',
-          eventType: 'milestone_reward',
-          commissionUsd: '1.8000',
-          status: 'verified',
-          ipHash: 'sha256:4a19c2',
-        },
-        {
-          referralCodeId: refCodeRow[0].id,
-          referrerUserId: creator.id,
-          referredUserEmail: 'dev.builds@hardware.io',
-          eventType: 'milestone_reward',
-          commissionUsd: '1.3000',
-          status: 'verified',
-          ipHash: 'sha256:9c82b1',
-        },
-      ]);
-
-      // 9. Seed Sessions, Notifications, Reports, Support Tickets, Audit Logs
-      await db.insert(sessions).values([
-        {
-          userId: creator.id,
-          deviceInfo: 'macOS Sequoia — Chrome 131.0 (Bengaluru, IN)',
-          ipAddress: '106.51.74.112',
-          active: true,
-        },
-        {
-          userId: creator.id,
-          deviceInfo: 'iPhone 16 Pro — Mobile Safari (Bengaluru, IN)',
-          ipAddress: '106.51.74.119',
-          active: true,
-        },
-      ]);
-
-      await db.insert(notifications).values([
-        {
-          userId: creator.id,
-          title: 'UPI Payout Settled (₹1,010.40 INR)',
-          message: 'Your withdrawal of $12.00 USD to arjunmehta@okhdfcbank was confirmed via UTR-629811049218.',
-          category: 'payout',
-          isRead: false,
-        },
-        {
-          userId: creator.id,
-          title: 'Video Transcoding Completed (4K HLS)',
-          message: 'Nordic Brutalist Pavilion — Architectural Monograph is now streaming on global CDN nodes.',
-          category: 'upload',
-          isRead: false,
-        },
-        {
-          userId: creator.id,
-          title: 'Earnings Milestone Reached: $60.00 Lifetime',
-          message: 'Your monetized links crossed 30,000 eligible monetized views across India, US, and EU.',
-          category: 'earnings',
-          isRead: true,
-        },
-      ]);
-
-      await db.insert(reports).values([
-        {
-          fileId: seededFiles[3].id,
-          reporterEmail: 'security-audit@external.org',
-          reasonCategory: 'malware',
-          details: 'Requesting routine verification of APK signature before public mirror indexing.',
-          copyrightClaim: false,
-          status: 'open',
-        },
-      ]);
-
-      await db.insert(supportTickets).values([
-        {
-          ticketNumber: 'TKT-2026-804',
-          userId: creator.id,
-          email: 'arjun.mehta@sharedabba.in',
-          subject: 'Custom CDN domain CNAME mapping for Creator Plan',
-          category: 'Storage & CDN',
-          priority: 'normal',
-          message: 'Can I bind media.arjunstudio.in to my unlisted shared links?',
-          status: 'resolved',
-          adminReply: 'Yes! Navigate to Account Settings -> Custom Domain and add the CNAME record pointing to edge.sharedabba.com.',
-        },
-      ]);
-
-      await db.insert(auditLogs).values([
-        {
-          actorUid: 'admin_super_01',
-          actorRole: 'super_admin',
-          action: 'CONFIGURE_MONETIZATION_RULES',
-          entityType: 'monetization_rules',
-          entityId: '1',
-          metadataJson: JSON.stringify({ activeMode: 'fixed_cpm', targetCpmUsd: 2.0, usdToInrRate: 84.2 }),
-          ipAddress: '103.21.124.8',
-        },
-        {
-          actorUid: 'admin_super_01',
-          actorRole: 'finance_admin',
-          action: 'APPROVE_UPI_PAYOUT',
-          entityType: 'withdrawal_requests',
-          entityId: 'wd_req_initial_01',
-          metadataJson: JSON.stringify({ amountUsd: 12.0, netPayoutInr: 1010.4, utr: 'UTR-629811049218' }),
-          ipAddress: '103.21.124.8',
-        },
-      ]);
-
       await db
         .insert(platformSettings)
         .values({
           settingKey: 'custom_codes_and_cpm_tiers',
           settingValueJson: JSON.stringify({
             maxAdsCpmUsd: 3.0,
-            balancedAdsCpmUsd: 2.0,
-            halfAdsCpmUsd: 1.5,
+            balancedAdsCpmUsd: 3.0,
+            halfAdsCpmUsd: 3.0,
             vastPreRollTagUrl: 'https://ads.sharedabba.com/vast/v4/preroll?placement=max_or_half',
             vastMidRollTagUrl: 'https://ads.sharedabba.com/vast/v4/midroll?interval=300',
             vastPostRollTagUrl: 'https://ads.sharedabba.com/vast/v4/postroll',
@@ -582,7 +120,7 @@ export async function ensurePlatformSeeded(): Promise<void> {
             s3BucketName: 'sharedabba-media-prod',
             cdnCustomDomain: 'https://cdn.sharedabba.com',
             supportEmail: 'support@sharedabba.com',
-            announcementBanner: 'Dynamic CPM Tiers Active: Max Ads ($3.00 eCPM) & Half Ads ($1.50 eCPM)',
+            announcementBanner: 'Official $3.00 CPM Creator Plan Active · Instant UPI & USDT Payouts',
           }),
           updatedByUid: 'admin_super_01',
         })
@@ -759,8 +297,8 @@ export async function getPlatformCustomCodes() {
 
   const defaults = {
     maxAdsCpmUsd: 3.0,
-    balancedAdsCpmUsd: 2.0,
-    halfAdsCpmUsd: 1.5,
+    balancedAdsCpmUsd: 3.0,
+    halfAdsCpmUsd: 3.0,
     vastPreRollTagUrl: 'https://ads.sharedabba.com/vast/v4/preroll?placement=max_or_half',
     vastMidRollTagUrl: 'https://ads.sharedabba.com/vast/v4/midroll?interval=300',
     vastPostRollTagUrl: 'https://ads.sharedabba.com/vast/v4/postroll',
@@ -789,7 +327,7 @@ export async function getPlatformCustomCodes() {
     s3BucketName: 'sharedabba-media-prod',
     cdnCustomDomain: 'https://cdn.sharedabba.com',
     supportEmail: 'support@sharedabba.com',
-    announcementBanner: 'Dynamic CPM Tiers Active: Max Ads ($3.00 eCPM) & Balanced ($2.00 eCPM) · Instant UPI & USDT Payouts',
+    announcementBanner: 'Official $3.00 CPM Creator Plan Active · Instant UPI & USDT Payouts',
     announcementBannerEnabled: true,
     customHeroHeadline: 'Your Content. Your Links. Your Earnings.',
     customHeroSubheadline: '',
@@ -807,9 +345,9 @@ export async function getPlatformCustomCodes() {
     return {
       ...defaults,
       ...parsed,
-      maxAdsCpmUsd: Number(parsed.maxAdsCpmUsd) || defaults.maxAdsCpmUsd,
-      balancedAdsCpmUsd: Number(parsed.balancedAdsCpmUsd) || defaults.balancedAdsCpmUsd,
-      halfAdsCpmUsd: Number(parsed.halfAdsCpmUsd) || defaults.halfAdsCpmUsd,
+      maxAdsCpmUsd: Number(parsed.maxAdsCpmUsd) || 3.0,
+      balancedAdsCpmUsd: Number(parsed.maxAdsCpmUsd) || 3.0,
+      halfAdsCpmUsd: Number(parsed.maxAdsCpmUsd) || 3.0,
       upiPayoutEnabled:
         typeof parsed.upiPayoutEnabled === 'boolean'
           ? parsed.upiPayoutEnabled
@@ -873,8 +411,8 @@ export async function adminUpdatePlatformCustomCodes(actorUid: string, payload: 
       ...current,
       ...payload,
       maxAdsCpmUsd: Number(payload.maxAdsCpmUsd ?? current.maxAdsCpmUsd ?? 3.0) || 3.0,
-      balancedAdsCpmUsd: Number(payload.balancedAdsCpmUsd ?? current.balancedAdsCpmUsd ?? 2.0) || 2.0,
-      halfAdsCpmUsd: Number(payload.halfAdsCpmUsd ?? current.halfAdsCpmUsd ?? 1.5) || 1.5,
+      balancedAdsCpmUsd: Number(payload.maxAdsCpmUsd ?? current.maxAdsCpmUsd ?? 3.0) || 3.0,
+      halfAdsCpmUsd: Number(payload.maxAdsCpmUsd ?? current.maxAdsCpmUsd ?? 3.0) || 3.0,
       upiPayoutEnabled:
         typeof payload.upiPayoutEnabled === 'boolean'
           ? payload.upiPayoutEnabled
@@ -1104,59 +642,21 @@ export async function getCreatorDashboardData(uid: string, email: string) {
         .insert(referralCodes)
         .values({
           userId: user.id,
-          code: user.referralCode || 'ARJUN-SD26',
-          clicksCount: 248,
-          registrationsCount: 19,
-          eligibleReferralsCount: 11,
-          totalEarnedUsd: '3.1000',
+          code: user.referralCode || `SD-${user.id}REF`,
+          clicksCount: 0,
+          registrationsCount: 0,
+          eligibleReferralsCount: 0,
+          totalEarnedUsd: '0.0000',
           campaignName: 'Creator Launch Partner 10%',
         })
         .returning();
     }
 
-    let refEvents = await db
+    const refEvents = await db
       .select()
       .from(referralEvents)
       .where(eq(referralEvents.referrerUserId, user.id))
       .orderBy(desc(referralEvents.createdAt));
-
-    const hasPendingReferralEvents = refEvents.some((e) => e.status === 'pending');
-    if (!hasPendingReferralEvents && refCodes[0]) {
-      await db.insert(referralEvents).values([
-        {
-          referralCodeId: refCodes[0].id,
-          referrerUserId: user.id,
-          referredUserEmail: 'rahul.cinema@frame.in',
-          eventType: 'signup_first_upload_bonus ($3.00 Max Ads Plan)',
-          commissionUsd: '1.4500',
-          status: 'pending',
-          ipHash: 'sha256:7d31e8',
-        },
-        {
-          referralCodeId: refCodes[0].id,
-          referrerUserId: user.id,
-          referredUserEmail: 'neha.motion@vfxstudio.co',
-          eventType: 'creator_signup_commission ($2.00 Balanced Plan)',
-          commissionUsd: '1.2000',
-          status: 'pending',
-          ipHash: 'sha256:3b94a1',
-        },
-        {
-          referralCodeId: refCodes[0].id,
-          referrerUserId: user.id,
-          referredUserEmail: 'vikram.audio@fielddsp.in',
-          eventType: 'signup_ad_views_milestone ($3.00 Max Ads Plan)',
-          commissionUsd: '0.9500',
-          status: 'pending',
-          ipHash: 'sha256:8f12c9',
-        },
-      ]);
-      refEvents = await db
-        .select()
-        .from(referralEvents)
-        .where(eq(referralEvents.referrerUserId, user.id))
-        .orderBy(desc(referralEvents.createdAt));
-    }
 
     const userNotifications = await db
       .select()
@@ -1312,6 +812,7 @@ export async function recordVerifiedPlaybackAndAdImpression(payload: {
   viewerCountry: string;
   adPreference: string;
   deviceCategory?: string;
+  viewerUid?: string;
 }) {
   try {
     await ensurePlatformSeeded();
@@ -1320,14 +821,14 @@ export async function recordVerifiedPlaybackAndAdImpression(payload: {
       throw new Error('File not found.');
     }
     const targetFile = matchedFiles[0];
+    if (targetFile.status !== 'ready') {
+      throw new Error('Video is not available for playback.');
+    }
     const rulesList = await db.select().from(monetizationRules);
     const rules = rulesList[0];
     const customCodes = await getPlatformCustomCodes();
 
-    const dynamicTargetCpm =
-      payload.adPreference === 'more'
-        ? Number(customCodes.maxAdsCpmUsd || 3.0)
-        : Number(customCodes.balancedAdsCpmUsd || rules.targetCpmUsd || 2.0);
+    const dynamicTargetCpm = Number(customCodes.maxAdsCpmUsd || rules.targetCpmUsd || 3.0);
     const grossAdRevenueUsd = payload.verifiedAdImpression
       ? Number(((dynamicTargetCpm / 1000) * 1.45).toFixed(4))
       : 0;
@@ -1358,10 +859,11 @@ export async function recordVerifiedPlaybackAndAdImpression(payload: {
       .values({
         sessionToken,
         fileId: targetFile.id,
+        viewerUid: payload.viewerUid || null,
         viewerCountry: payload.viewerCountry || 'IN',
         deviceCategory: payload.deviceCategory || 'Desktop',
-        referrer: 'Shared Link',
-        adPreference: payload.adPreference || 'balanced',
+        referrer: payload.deviceCategory === 'Android' ? 'Android Native App' : 'Shared Link',
+        adPreference: payload.adPreference || 'more',
         watchDurationSeconds: payload.watchDurationSeconds,
         qualifiedView: payload.watchDurationSeconds >= rules.minWatchSeconds,
         monetized: calc.qualified,
@@ -2357,12 +1859,6 @@ export async function createSupportTicketOrReport(payload: {
       if (userRows[0]) {
         resolvedUserId = userRows[0].id;
       }
-    } else {
-      const creatorRows = await db.select().from(users).where(eq(users.uid, 'creator_arjun_01'));
-      if (creatorRows[0]) {
-        resolvedUserId = creatorRows[0].id;
-        resolvedEmail = creatorRows[0].email;
-      }
     }
 
     const normalizedCategory = (payload.category || '').trim() || 'General';
@@ -2465,11 +1961,11 @@ export async function recordReferralSignupOrSettleBonus(
         .insert(referralCodes)
         .values({
           userId: user.id,
-          code: user.referralCode || 'ARJUN-SD26',
-          clicksCount: 248,
-          registrationsCount: 19,
-          eligibleReferralsCount: 11,
-          totalEarnedUsd: '3.1000',
+          code: user.referralCode || `SD-${user.id}REF`,
+          clicksCount: 0,
+          registrationsCount: 0,
+          eligibleReferralsCount: 0,
+          totalEarnedUsd: '0.0000',
           campaignName: 'Creator Launch Partner 10%',
         })
         .returning();
@@ -2482,9 +1978,8 @@ export async function recordReferralSignupOrSettleBonus(
       const cleanRefEmail =
         (payload.referredEmail || '').trim().toLowerCase() ||
         `creator.${Math.floor(100 + Math.random() * 899)}@studio.in`;
-      const isMaxPlan = payload.planTier !== 'balanced';
-      const bonusUsd = isMaxPlan ? 1.5 : 1.1;
-      const planLabel = isMaxPlan ? '$3.00 Max Ads Plan' : '$2.00 Balanced Plan';
+      const bonusUsd = 1.5;
+      const planLabel = 'Official $3.00 CPM Plan';
 
       const inserted = await db
         .insert(referralEvents)
@@ -2597,4 +2092,895 @@ export async function recordReferralSignupOrSettleBonus(
     throw new Error(error.message || 'Failed to update referral bonus status.', { cause: error });
   }
 }
+
+// ============================================================================
+// SHARED NATIVE ANDROID & WEB API INTEGRATION FOUNDATION (/api/v1/*)
+// ============================================================================
+
+export async function registerOrLoginAndroidSession(params: {
+  uid: string;
+  email: string;
+  displayName?: string;
+  deviceName?: string;
+  ipAddress?: string;
+  referralCodeUsed?: string;
+}) {
+  await ensurePlatformSeeded();
+  const user = await getOrCreateUser(params.uid, params.email, params.displayName);
+
+  if (user.status === 'suspended') {
+    throw new Error('Account has been suspended by platform administration.');
+  }
+
+  // Ensure userProfiles row exists
+  const existingProfile = await db
+    .select()
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, user.id));
+
+  if (existingProfile.length === 0) {
+    await db.insert(userProfiles).values({
+      userId: user.id,
+      bio: 'ShareDabba Creator',
+      website: '',
+      country: 'IN',
+      preferredCurrency: 'INR',
+      notificationEmailEnabled: true,
+    });
+  }
+
+  // Create a tracked device session in existing `sessions` table
+  const sessionToken = `sds_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+  const insertedSessions = await db
+    .insert(sessions)
+    .values({
+      userId: user.id,
+      sessionToken,
+      deviceName: (params.deviceName || 'ShareDabba Android App').slice(0, 120),
+      ipAddress: (params.ipAddress || '0.0.0.0').slice(0, 64),
+      lastActiveAt: new Date(),
+      expiresAt,
+      revoked: false,
+    })
+    .returning();
+
+  const wallets = await db.select().from(walletAccounts).where(eq(walletAccounts.userId, user.id));
+  const profileRows = await db.select().from(userProfiles).where(eq(userProfiles.userId, user.id));
+
+  return {
+    user: {
+      id: user.id,
+      uid: user.uid,
+      email: user.email,
+      username: user.username,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl || '',
+      role: user.role,
+      planTier: user.planTier,
+      status: user.status,
+      kycVerified: user.kycVerified,
+      upiId: user.upiId || '',
+      upiVerified: user.upiVerified,
+      referralCode: user.referralCode,
+      storageUsedBytes: user.storageUsedBytes,
+      storageLimitBytes: user.storageLimitBytes,
+      adPreference: 'more',
+      createdAt: user.createdAt,
+    },
+    profile: profileRows[0] || null,
+    wallet: wallets[0] || null,
+    session: {
+      id: insertedSessions[0].id,
+      sessionToken: insertedSessions[0].sessionToken,
+      deviceName: insertedSessions[0].deviceName,
+      expiresAt: insertedSessions[0].expiresAt,
+    },
+  };
+}
+
+export async function getUserSessionsList(uid: string, email: string) {
+  const user = await getOrCreateUser(uid, email);
+  const rows = await db
+    .select()
+    .from(sessions)
+    .where(eq(sessions.userId, user.id))
+    .orderBy(desc(sessions.lastActiveAt));
+
+  return rows.map((s) => ({
+    id: s.id,
+    sessionTokenPreview: `${s.sessionToken.slice(0, 10)}...`,
+    deviceName: s.deviceName,
+    ipAddress: s.ipAddress,
+    lastActiveAt: s.lastActiveAt,
+    expiresAt: s.expiresAt,
+    revoked: s.revoked,
+  }));
+}
+
+export async function revokeUserSession(
+  uid: string,
+  email: string,
+  target: { sessionId?: number; sessionToken?: string; revokeAll?: boolean }
+) {
+  const user = await getOrCreateUser(uid, email);
+  const rows = await db.select().from(sessions).where(eq(sessions.userId, user.id));
+
+  let revokedCount = 0;
+  for (const s of rows) {
+    const matchesId = target.sessionId !== undefined && s.id === Number(target.sessionId);
+    const matchesToken = target.sessionToken && s.sessionToken === target.sessionToken;
+    if (target.revokeAll || matchesId || matchesToken) {
+      if (!s.revoked) {
+        await db.update(sessions).set({ revoked: true }).where(eq(sessions.id, s.id));
+        revokedCount++;
+      }
+    }
+  }
+
+  return {
+    success: true,
+    revokedCount,
+  };
+}
+
+export async function getAccountProfileData(uid: string, email: string) {
+  const user = await getOrCreateUser(uid, email);
+  let profileRows = await db.select().from(userProfiles).where(eq(userProfiles.userId, user.id));
+  if (profileRows.length === 0) {
+    profileRows = await db
+      .insert(userProfiles)
+      .values({
+        userId: user.id,
+        bio: 'ShareDabba Creator',
+        website: '',
+        country: 'IN',
+        preferredCurrency: 'INR',
+        notificationEmailEnabled: true,
+      })
+      .returning();
+  }
+  const wallets = await db.select().from(walletAccounts).where(eq(walletAccounts.userId, user.id));
+
+  return {
+    user: {
+      id: user.id,
+      uid: user.uid,
+      email: user.email,
+      username: user.username,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl || '',
+      role: user.role,
+      planTier: user.planTier,
+      status: user.status,
+      kycVerified: user.kycVerified,
+      upiId: user.upiId || '',
+      upiVerified: user.upiVerified,
+      twoFactorEnabled: user.twoFactorEnabled,
+      referralCode: user.referralCode,
+      storageUsedBytes: user.storageUsedBytes,
+      storageLimitBytes: user.storageLimitBytes,
+      adPreference: 'more',
+      createdAt: user.createdAt,
+    },
+    profile: profileRows[0],
+    wallet: wallets[0] || null,
+  };
+}
+
+export async function updateAccountProfileData(
+  uid: string,
+  email: string,
+  updates: {
+    displayName?: string;
+    upiId?: string;
+    avatarUrl?: string;
+    bio?: string;
+    website?: string;
+    country?: string;
+    preferredCurrency?: string;
+    notificationEmailEnabled?: boolean;
+    twoFactorEnabled?: boolean;
+  }
+) {
+  const user = await getOrCreateUser(uid, email);
+  let nextUpi = user.upiId || '';
+  let nextUpiVerified = user.upiVerified;
+
+  if (updates.upiId !== undefined && updates.upiId.trim() !== '') {
+    const check = validateUpiId(updates.upiId);
+    if (!check.valid) {
+      throw new Error(check.reason || 'Invalid UPI ID or USDT address.');
+    }
+    nextUpi = updates.upiId.trim();
+    nextUpiVerified = true;
+  } else if (updates.upiId === '') {
+    nextUpi = '';
+    nextUpiVerified = false;
+  }
+
+  const updatedUsers = await db
+    .update(users)
+    .set({
+      displayName: updates.displayName !== undefined ? updates.displayName.trim() || user.displayName : user.displayName,
+      avatarUrl: updates.avatarUrl !== undefined ? updates.avatarUrl.trim() : user.avatarUrl,
+      upiId: nextUpi,
+      upiVerified: nextUpiVerified,
+      twoFactorEnabled: updates.twoFactorEnabled !== undefined ? Boolean(updates.twoFactorEnabled) : user.twoFactorEnabled,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, user.id))
+    .returning();
+
+  let profileRows = await db.select().from(userProfiles).where(eq(userProfiles.userId, user.id));
+  if (profileRows.length === 0) {
+    profileRows = await db
+      .insert(userProfiles)
+      .values({
+        userId: user.id,
+        bio: updates.bio?.trim() || 'ShareDabba Creator',
+        website: updates.website?.trim() || '',
+        country: updates.country?.trim() || 'IN',
+        preferredCurrency: updates.preferredCurrency?.trim() || 'INR',
+        notificationEmailEnabled:
+          updates.notificationEmailEnabled !== undefined ? Boolean(updates.notificationEmailEnabled) : true,
+      })
+      .returning();
+  } else {
+    profileRows = await db
+      .update(userProfiles)
+      .set({
+        bio: updates.bio !== undefined ? updates.bio.trim() : profileRows[0].bio,
+        website: updates.website !== undefined ? updates.website.trim() : profileRows[0].website,
+        country: updates.country !== undefined ? updates.country.trim() : profileRows[0].country,
+        preferredCurrency:
+          updates.preferredCurrency !== undefined
+            ? updates.preferredCurrency.trim()
+            : profileRows[0].preferredCurrency,
+        notificationEmailEnabled:
+          updates.notificationEmailEnabled !== undefined
+            ? Boolean(updates.notificationEmailEnabled)
+            : profileRows[0].notificationEmailEnabled,
+      })
+      .where(eq(userProfiles.id, profileRows[0].id))
+      .returning();
+  }
+
+  return {
+    user: updatedUsers[0],
+    profile: profileRows[0],
+  };
+}
+
+async function hydrateCanonicalVideos(fileList: Array<typeof files.$inferSelect>) {
+  if (fileList.length === 0) return [];
+  const allUsers = await db.select().from(users);
+  const allVideoMeta = await db.select().from(videos);
+
+  const userMap = new Map(allUsers.map((u) => [u.id, u]));
+  const videoMetaMap = new Map(allVideoMeta.map((v) => [v.fileId, v]));
+
+  return fileList.map((file) =>
+    toCanonicalVideoDto({
+      file,
+      videoMeta: videoMetaMap.get(file.id) || null,
+      owner: userMap.get(file.userId) || null,
+    })
+  );
+}
+
+export async function getHomeVideoFeed(limit = 20) {
+  await ensurePlatformSeeded();
+  const safeLimit = Math.max(1, Math.min(50, Number(limit) || 20));
+  const allFiles = await db.select().from(files).orderBy(desc(files.createdAt));
+
+  // Only public, ready, clean videos appear in discovery feeds
+  const publicReady = allFiles.filter(
+    (f) => f.status === 'ready' && f.visibility === 'public' && f.malwareScanStatus !== 'infected'
+  );
+
+  const featuredSorted = [...publicReady]
+    .sort((a, b) => (b.viewsCount || 0) - (a.viewsCount || 0))
+    .slice(0, Math.min(10, safeLimit));
+
+  const latestList = publicReady.slice(0, safeLimit);
+
+  const categoryCounts = new Map<string, number>();
+  for (const f of publicReady) {
+    const cat = (f.category || 'General').trim();
+    categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1);
+  }
+
+  const [featuredVideos, latestVideos] = await Promise.all([
+    hydrateCanonicalVideos(featuredSorted),
+    hydrateCanonicalVideos(latestList),
+  ]);
+
+  return {
+    featured: featuredVideos,
+    latest: latestVideos,
+    categories: Array.from(categoryCounts.entries()).map(([name, count]) => ({
+      name,
+      slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      count,
+    })),
+    totalPublicVideos: publicReady.length,
+  };
+}
+
+export async function getFeaturedOrLatestVideos(params: {
+  type: 'featured' | 'latest';
+  limit?: number;
+  offset?: number;
+}) {
+  await ensurePlatformSeeded();
+  const safeLimit = Math.max(1, Math.min(50, Number(params.limit) || 20));
+  const safeOffset = Math.max(0, Number(params.offset) || 0);
+
+  const allFiles = await db.select().from(files).orderBy(desc(files.createdAt));
+  const publicReady = allFiles.filter(
+    (f) => f.status === 'ready' && f.visibility === 'public' && f.malwareScanStatus !== 'infected'
+  );
+
+  const sorted =
+    params.type === 'featured'
+      ? [...publicReady].sort(
+          (a, b) =>
+            (b.monetizedViewsCount || 0) * 2 +
+            (b.viewsCount || 0) -
+            ((a.monetizedViewsCount || 0) * 2 + (a.viewsCount || 0))
+        )
+      : publicReady;
+
+  const sliced = sorted.slice(safeOffset, safeOffset + safeLimit);
+  const items = await hydrateCanonicalVideos(sliced);
+
+  return {
+    type: params.type,
+    items,
+    pagination: {
+      total: sorted.length,
+      limit: safeLimit,
+      offset: safeOffset,
+      hasMore: safeOffset + safeLimit < sorted.length,
+    },
+  };
+}
+
+export async function getCategoriesAndSearchVideos(params: {
+  q?: string;
+  category?: string;
+  fileType?: string;
+  sort?: 'latest' | 'popular';
+  limit?: number;
+  offset?: number;
+}) {
+  await ensurePlatformSeeded();
+  const safeLimit = Math.max(1, Math.min(50, Number(params.limit) || 20));
+  const safeOffset = Math.max(0, Number(params.offset) || 0);
+  const query = (params.q || '').trim().toLowerCase();
+  const categoryFilter = (params.category || '').trim().toLowerCase();
+  const fileTypeFilter = (params.fileType || '').trim().toLowerCase();
+
+  const allFiles = await db.select().from(files).orderBy(desc(files.createdAt));
+  const publicReady = allFiles.filter(
+    (f) => f.status === 'ready' && f.visibility === 'public' && f.malwareScanStatus !== 'infected'
+  );
+
+  // Compute all categories from publicReady
+  const categoryMap = new Map<string, number>();
+  for (const f of publicReady) {
+    const cat = (f.category || 'General').trim();
+    categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1);
+  }
+
+  let filtered = publicReady.filter((f) => {
+    if (categoryFilter && categoryFilter !== 'all') {
+      if ((f.category || '').toLowerCase() !== categoryFilter) return false;
+    }
+    if (fileTypeFilter && fileTypeFilter !== 'all') {
+      if ((f.fileType || '').toLowerCase() !== fileTypeFilter) return false;
+    }
+    if (query) {
+      const hay = `${f.title} ${f.description || ''} ${f.category || ''} ${f.tags || ''} ${f.slug}`.toLowerCase();
+      if (!hay.includes(query)) return false;
+    }
+    return true;
+  });
+
+  if (params.sort === 'popular') {
+    filtered = [...filtered].sort((a, b) => (b.viewsCount || 0) - (a.viewsCount || 0));
+  }
+
+  const sliced = filtered.slice(safeOffset, safeOffset + safeLimit);
+  const items = await hydrateCanonicalVideos(sliced);
+
+  return {
+    items,
+    categories: Array.from(categoryMap.entries()).map(([name, count]) => ({
+      name,
+      slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      count,
+    })),
+    pagination: {
+      total: filtered.length,
+      limit: safeLimit,
+      offset: safeOffset,
+      hasMore: safeOffset + safeLimit < filtered.length,
+    },
+  };
+}
+
+export async function getVideoDetailsForViewer(params: {
+  slug: string;
+  requesterUid?: string | null;
+  requesterEmail?: string | null;
+  password?: string | null;
+}) {
+  await ensurePlatformSeeded();
+  const cleanSlug = (params.slug || '').trim();
+  if (!cleanSlug) {
+    return { status: 'not_found' as const };
+  }
+
+  const rows = await db.select().from(files).where(eq(files.slug, cleanSlug));
+  if (rows.length === 0) {
+    return { status: 'not_found' as const };
+  }
+  const file = rows[0];
+
+  if (file.status === 'quarantined' || file.status === 'removed' || file.malwareScanStatus === 'infected') {
+    return {
+      status: 'unavailable' as const,
+      videoId: file.slug,
+      reason: 'This video has been removed or restricted by platform moderation policy.',
+    };
+  }
+
+  const ownerRows = await db.select().from(users).where(eq(users.id, file.userId));
+  const owner = ownerRows[0] || null;
+  const isOwner = Boolean(params.requesterUid && owner && owner.uid === params.requesterUid);
+  const isSuperAdmin = Boolean(
+    params.requesterEmail && params.requesterEmail.trim().toLowerCase() === SUPER_ADMIN_EMAIL
+  );
+
+  // Enforce private visibility check
+  if (file.visibility === 'private' && !isOwner && !isSuperAdmin) {
+    return {
+      status: 'forbidden_private' as const,
+      videoId: file.slug,
+      reason: 'This video is private and can only be accessed by its uploader.',
+    };
+  }
+
+  const videoMetaRows = await db.select().from(videos).where(eq(videos.fileId, file.id));
+  const videoMeta = videoMetaRows[0] || null;
+  const rulesRows = await db.select().from(monetizationRules);
+  const customCodes = await getPlatformCustomCodes();
+
+  const dto = toCanonicalVideoDto({ file, videoMeta, owner });
+
+  return {
+    status: 'ok' as const,
+    video: dto,
+    isOwner,
+    monetization: {
+      planName: 'Official $3.00 CPM Plan',
+      targetCpmUsd: Number(customCodes.maxAdsCpmUsd ?? rulesRows[0]?.targetCpmUsd ?? 3.0),
+      minWatchSeconds: rulesRows[0]?.minWatchSeconds ?? 5,
+      vastPreRollTagUrl: customCodes.vastPreRollTagUrl,
+      vastMidRollTagUrl: customCodes.vastMidRollTagUrl,
+    },
+  };
+}
+
+export async function authorizeVideoPlayback(params: {
+  slug: string;
+  requesterUid?: string | null;
+  requesterEmail?: string | null;
+  password?: string | null;
+}) {
+  await ensurePlatformSeeded();
+  const cleanSlug = (params.slug || '').trim();
+  if (!cleanSlug) {
+    return { authorized: false, httpStatus: 404, error: 'Video ID is required.' };
+  }
+
+  const rows = await db.select().from(files).where(eq(files.slug, cleanSlug));
+  if (rows.length === 0) {
+    return { authorized: false, httpStatus: 404, error: 'Video not found.' };
+  }
+  const file = rows[0];
+
+  if (file.status === 'quarantined' || file.status === 'removed' || file.malwareScanStatus === 'infected') {
+    return {
+      authorized: false,
+      httpStatus: 410,
+      error: 'Video is no longer available due to moderation or uploader removal.',
+    };
+  }
+
+  const ownerRows = await db.select().from(users).where(eq(users.id, file.userId));
+  const owner = ownerRows[0] || null;
+  const isOwner = Boolean(params.requesterUid && owner && owner.uid === params.requesterUid);
+  const isSuperAdmin = Boolean(
+    params.requesterEmail && params.requesterEmail.trim().toLowerCase() === SUPER_ADMIN_EMAIL
+  );
+
+  if (file.visibility === 'private' && !isOwner && !isSuperAdmin) {
+    return {
+      authorized: false,
+      httpStatus: 403,
+      error: 'Private video: only the uploader is authorized to play this video.',
+    };
+  }
+
+  // Enforce password protection if configured on the video
+  const hasPassword = Boolean(file.passwordHash && file.passwordHash.trim() !== '');
+  if (hasPassword && !isOwner && !isSuperAdmin) {
+    const provided = (params.password || '').trim();
+    if (!provided || provided !== file.passwordHash?.trim()) {
+      return {
+        authorized: false,
+        httpStatus: 401,
+        passwordRequired: true,
+        error: 'A valid password is required to unlock playback for this video.',
+      };
+    }
+  }
+
+  const signed = createSignedPlaybackToken({
+    slug: file.slug,
+    fileId: file.id,
+    viewerUid: params.requesterUid || null,
+    visibility: file.visibility,
+    ttlSeconds: 3600,
+  });
+
+  const videoMetaRows = await db.select().from(videos).where(eq(videos.fileId, file.id));
+  const videoMeta = videoMetaRows[0] || null;
+  const customCodes = await getPlatformCustomCodes();
+  const rulesRows = await db.select().from(monetizationRules);
+
+  return {
+    authorized: true,
+    httpStatus: 200,
+    videoId: file.slug,
+    playback: {
+      playbackToken: signed.token,
+      expiresAt: signed.expiresAt,
+      authorizedStreamUrl: `/api/stream/${encodeURIComponent(file.slug)}?token=${encodeURIComponent(signed.token)}`,
+      mimeType: file.mimeType,
+      durationSeconds: file.durationSeconds,
+      resolution: file.resolution,
+      allowDownload: file.allowDownload,
+      qualities: videoMeta?.qualitiesJson ? JSON.parse(videoMeta.qualitiesJson) : ['1080p', '720p', '480p'],
+      vast: {
+        enabled: Boolean(videoMeta?.vastEnabled ?? true),
+        preRollTagUrl: customCodes.vastPreRollTagUrl,
+        midRollTagUrl: customCodes.vastMidRollTagUrl,
+        minWatchSecondsForCredit: rulesRows[0]?.minWatchSeconds ?? 5,
+        targetCpmUsd: Number(customCodes.maxAdsCpmUsd ?? 3.0),
+      },
+    },
+  };
+}
+
+export async function updateOrDeleteCreatorVideo(
+  uid: string,
+  email: string,
+  slug: string,
+  action: 'update' | 'delete',
+  payload?: {
+    title?: string;
+    description?: string;
+    visibility?: 'public' | 'unlisted' | 'private';
+    category?: string;
+    tags?: string;
+    allowDownload?: boolean;
+    password?: string;
+    thumbnailType?: string;
+  }
+) {
+  const user = await getOrCreateUser(uid, email);
+  const cleanSlug = (slug || '').trim();
+  const rows = await db.select().from(files).where(eq(files.slug, cleanSlug));
+  if (rows.length === 0) {
+    throw new Error('Video not found.');
+  }
+  const file = rows[0];
+  const isSuperAdmin = (email || '').trim().toLowerCase() === SUPER_ADMIN_EMAIL;
+
+  // Strict ownership check: uploaders cannot edit or delete another user's video
+  if (file.userId !== user.id && !isSuperAdmin) {
+    const err = new Error('Forbidden: You do not own this video.');
+    (err as any).httpStatus = 403;
+    throw err;
+  }
+
+  if (action === 'delete') {
+    await db
+      .update(files)
+      .set({ status: 'removed', visibility: 'private' })
+      .where(eq(files.id, file.id));
+
+    return {
+      success: true,
+      videoId: file.slug,
+      status: 'removed',
+      message: 'Video has been marked as removed and is no longer publicly accessible.',
+    };
+  }
+
+  const allowedVisibilities = ['public', 'unlisted', 'private'];
+  const nextVisibility =
+    payload?.visibility && allowedVisibilities.includes(payload.visibility)
+      ? payload.visibility
+      : file.visibility;
+
+  const updated = await db
+    .update(files)
+    .set({
+      title: payload?.title !== undefined ? payload.title.trim() || file.title : file.title,
+      description: payload?.description !== undefined ? payload.description.trim() : file.description,
+      visibility: nextVisibility,
+      category: payload?.category !== undefined ? payload.category.trim() || 'General' : file.category,
+      tags: payload?.tags !== undefined ? payload.tags.trim() : file.tags,
+      allowDownload: payload?.allowDownload !== undefined ? Boolean(payload.allowDownload) : file.allowDownload,
+      passwordHash: payload?.password !== undefined ? payload.password.trim() || null : file.passwordHash,
+      thumbnailType: payload?.thumbnailType !== undefined ? payload.thumbnailType.trim() : file.thumbnailType,
+    })
+    .where(eq(files.id, file.id))
+    .returning();
+
+  const hydrated = await hydrateCanonicalVideos(updated);
+  return {
+    success: true,
+    video: hydrated[0],
+  };
+}
+
+export async function getRecentlyWatchedVideos(uid: string, limit = 20) {
+  await ensurePlatformSeeded();
+  const safeLimit = Math.max(1, Math.min(50, Number(limit) || 20));
+  const allSessions = await db
+    .select()
+    .from(playbackSessions)
+    .where(eq(playbackSessions.viewerUid, uid))
+    .orderBy(desc(playbackSessions.createdAt));
+
+  if (allSessions.length === 0) {
+    return [];
+  }
+
+  const allFiles = await db.select().from(files);
+  const fileMap = new Map(allFiles.map((f) => [f.id, f]));
+
+  const seenFileIds = new Set<number>();
+  const uniqueRecent: Array<{
+    session: typeof playbackSessions.$inferSelect;
+    file: typeof files.$inferSelect;
+  }> = [];
+
+  for (const s of allSessions) {
+    if (seenFileIds.has(s.fileId)) continue;
+    const f = fileMap.get(s.fileId);
+    if (!f || f.status !== 'ready') continue;
+    seenFileIds.add(s.fileId);
+    uniqueRecent.push({ session: s, file: f });
+    if (uniqueRecent.length >= safeLimit) break;
+  }
+
+  const hydrated = await hydrateCanonicalVideos(uniqueRecent.map((r) => r.file));
+  return uniqueRecent.map((entry, idx) => ({
+    watchedAt: entry.session.createdAt,
+    watchDurationSeconds: entry.session.watchDurationSeconds,
+    qualifiedView: entry.session.qualifiedView,
+    deviceCategory: entry.session.deviceCategory,
+    video: hydrated[idx],
+  }));
+}
+
+export async function getPublicUploaderProfile(identifier: string) {
+  await ensurePlatformSeeded();
+  const clean = (identifier || '').trim();
+  if (!clean) return null;
+
+  const allUsers = await db.select().from(users);
+  const targetUser = allUsers.find(
+    (u) => u.username.toLowerCase() === clean.toLowerCase() || u.uid === clean
+  );
+  if (!targetUser || targetUser.status === 'suspended') {
+    return null;
+  }
+
+  const profileRows = await db
+    .select()
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, targetUser.id));
+
+  const userFiles = await db
+    .select()
+    .from(files)
+    .where(eq(files.userId, targetUser.id))
+    .orderBy(desc(files.createdAt));
+
+  const publicFiles = userFiles.filter(
+    (f) => f.status === 'ready' && f.visibility === 'public' && f.malwareScanStatus !== 'infected'
+  );
+
+  const hydratedVideos = await hydrateCanonicalVideos(publicFiles);
+  const totalPublicViews = publicFiles.reduce((acc, f) => acc + (f.viewsCount || 0), 0);
+
+  return {
+    uploader: {
+      uid: targetUser.uid,
+      username: targetUser.username,
+      displayName: targetUser.displayName,
+      avatarUrl: targetUser.avatarUrl || '',
+      kycVerified: targetUser.kycVerified,
+      bio: profileRows[0]?.bio || 'ShareDabba Creator',
+      website: profileRows[0]?.website || '',
+      country: profileRows[0]?.country || 'IN',
+      joinedAt: targetUser.createdAt,
+      stats: {
+        publicVideosCount: publicFiles.length,
+        totalPublicViews,
+      },
+    },
+    videos: hydratedVideos,
+  };
+}
+
+export async function getCreatorEarningsAndWithdrawals(uid: string, email: string) {
+  const user = await getOrCreateUser(uid, email);
+  const [wallets, ledger, earnings, withdrawals, rulesList, customCodes] = await Promise.all([
+    db.select().from(walletAccounts).where(eq(walletAccounts.userId, user.id)),
+    db
+      .select()
+      .from(walletLedger)
+      .where(eq(walletLedger.userId, user.id))
+      .orderBy(desc(walletLedger.createdAt)),
+    db
+      .select()
+      .from(earningEvents)
+      .where(eq(earningEvents.creatorUserId, user.id))
+      .orderBy(desc(earningEvents.createdAt)),
+    db
+      .select()
+      .from(withdrawalRequests)
+      .where(eq(withdrawalRequests.userId, user.id))
+      .orderBy(desc(withdrawalRequests.createdAt)),
+    db.select().from(monetizationRules),
+    getPlatformCustomCodes(),
+  ]);
+
+  const rules = rulesList[0];
+  return {
+    wallet: wallets[0] || null,
+    monetizationPlan: {
+      planName: 'Official $3.00 CPM Plan',
+      targetCpmUsd: Number(customCodes.maxAdsCpmUsd ?? rules?.targetCpmUsd ?? 3.0),
+      usdToInrRate: Number(rules?.usdToInrRate ?? 84.2),
+      upiMinWithdrawalUsd: Number(customCodes.upiMinWithdrawalUsd ?? rules?.minWithdrawalUsd ?? 5.0),
+      usdtMinWithdrawalUsd: Number(customCodes.usdtMinWithdrawalUsd ?? 20.0),
+      upiFeePercent: Number(customCodes.upiFeePercent ?? 0),
+      usdtFeePercent: Number(customCodes.usdtFeePercent ?? 1.5),
+      upiPayoutEnabled: Boolean(customCodes.upiPayoutEnabled ?? true),
+      usdtPayoutEnabled: Boolean(customCodes.usdtPayoutEnabled ?? true),
+    },
+    earningEvents: earnings.slice(0, 100),
+    ledger: ledger.slice(0, 100),
+    withdrawals: withdrawals.slice(0, 50),
+  };
+}
+
+export async function getUserNotificationsList(uid: string, email: string) {
+  const user = await getOrCreateUser(uid, email);
+  const rows = await db
+    .select()
+    .from(notifications)
+    .where(eq(notifications.userId, user.id))
+    .orderBy(desc(notifications.createdAt));
+
+  return {
+    unreadCount: rows.filter((n) => !n.isRead).length,
+    items: rows.slice(0, 50),
+  };
+}
+
+export async function markNotificationRead(
+  uid: string,
+  email: string,
+  notificationId: number | 'all'
+) {
+  const user = await getOrCreateUser(uid, email);
+  const rows = await db.select().from(notifications).where(eq(notifications.userId, user.id));
+
+  let updatedCount = 0;
+  for (const n of rows) {
+    if (notificationId === 'all' || n.id === Number(notificationId)) {
+      if (!n.isRead) {
+        await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, n.id));
+        updatedCount++;
+      }
+    }
+  }
+
+  return {
+    success: true,
+    updatedCount,
+  };
+}
+
+export async function getAndroidRemoteConfig() {
+  await ensurePlatformSeeded();
+  const [rulesList, customCodes] = await Promise.all([
+    db.select().from(monetizationRules),
+    getPlatformCustomCodes(),
+  ]);
+  const rules = rulesList[0];
+
+  const packageName = process.env.ANDROID_PACKAGE_NAME || 'com.sharedabba.app';
+  const rawFingerprints =
+    process.env.ANDROID_SHA256_CERT_FINGERPRINTS ||
+    'FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C';
+  const sha256Fingerprints = rawFingerprints
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  return {
+    platform: {
+      siteTitle: customCodes.siteTitle || 'ShareDabba',
+      supportEmail: customCodes.supportEmail || 'support@sharedabba.in',
+      telegramChannelUrl: customCodes.telegramChannelUrl || 'https://t.me/sharedabba',
+      maintenanceMode: Boolean(customCodes.maintenanceMode ?? false),
+      registrationEnabled: Boolean(customCodes.registrationEnabled ?? true),
+      announcementBanner: customCodes.announcementBannerEnabled ? customCodes.announcementBanner : null,
+      maxUploadSizeMb: Number(customCodes.maxUploadSizeMb ?? 2048),
+    },
+    monetization: {
+      activePlanName: 'Official $3.00 CPM Plan',
+      activeMode: rules?.activeMode || 'fixed_cpm',
+      targetCpmUsd: Number(customCodes.maxAdsCpmUsd ?? rules?.targetCpmUsd ?? 3.0),
+      minWatchSeconds: Number(rules?.minWatchSeconds ?? 5),
+      usdToInrRate: Number(rules?.usdToInrRate ?? 84.2),
+      usdtToInrRate: Number(customCodes.usdtToInrRate ?? 86.5),
+      referralCommissionPercent: Number(rules?.referralCommissionPercent ?? 10.0),
+      payouts: {
+        upiEnabled: Boolean(customCodes.upiPayoutEnabled ?? true),
+        upiMinWithdrawalUsd: Number(customCodes.upiMinWithdrawalUsd ?? rules?.minWithdrawalUsd ?? 5.0),
+        upiFeePercent: Number(customCodes.upiFeePercent ?? 0),
+        usdtEnabled: Boolean(customCodes.usdtPayoutEnabled ?? true),
+        usdtMinWithdrawalUsd: Number(customCodes.usdtMinWithdrawalUsd ?? 20.0),
+        usdtFeePercent: Number(customCodes.usdtFeePercent ?? 1.5),
+      },
+    },
+    advertising: {
+      vastPreRollTagUrl: customCodes.vastPreRollTagUrl,
+      vastMidRollTagUrl: customCodes.vastMidRollTagUrl,
+      rewardedAdEnabled: true,
+    },
+    androidAppLinks: {
+      packageName,
+      sha256CertFingerprints: sha256Fingerprints,
+      canonicalSharePathPrefix: '/v/',
+      legacyQueryParam: 'v',
+      assetLinksUrl: '/.well-known/assetlinks.json',
+    },
+    externalProvidersStatus: {
+      s3ObjectStorageConfigured: Boolean(
+        process.env.S3_ACCESS_KEY_ID && process.env.S3_ACCESS_KEY_ID !== 'YOUR_S3_ACCESS_KEY_ID'
+      ),
+      razorpayxUpiGatewayConfigured: Boolean(
+        process.env.RAZORPAYX_KEY_ID && process.env.RAZORPAYX_KEY_ID !== 'YOUR_RAZORPAYX_KEY_ID'
+      ),
+      firebaseAuthConfigured: true,
+    },
+    serverTimestamp: new Date().toISOString(),
+  };
+}
+
 

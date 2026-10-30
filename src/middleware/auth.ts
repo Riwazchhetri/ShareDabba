@@ -48,41 +48,38 @@ export const requireAuth = async (
     } catch (error) {
       if (token.startsWith('sd_session_')) {
         const parts = token.replace('sd_session_', '').split('::');
-        const normalizedEmail = (parts[1] || sessionEmailHeader || 'arjun.mehta@sharedabba.in')
+        const normalizedEmail = (parts[1] || sessionEmailHeader || '')
           .trim()
           .toLowerCase();
+        if (!normalizedEmail || !normalizedEmail.includes('@')) {
+          return res.status(401).json({ error: 'Unauthorized: Missing account email' });
+        }
         const isSuperAdmin = normalizedEmail === SUPER_ADMIN_BOUND_EMAIL;
         req.user = {
-          uid: isSuperAdmin ? 'admin_super_01' : parts[0] || 'creator_arjun_01',
+          uid: isSuperAdmin ? 'admin_super_01' : parts[0] || `creator_${normalizedEmail.replace(/[^a-z0-9]/g, '_')}`,
           email: normalizedEmail,
-          name: parts[2] || sessionNameHeader || (isSuperAdmin ? 'Rudra (Super Admin)' : 'Creator'),
+          name: parts[2] || sessionNameHeader || (isSuperAdmin ? 'Rudra (Super Admin)' : normalizedEmail.split('@')[0]),
           role: isSuperAdmin ? 'super_admin' : 'creator',
         };
         return next();
       }
-      console.error('Error verifying Firebase ID token:', error);
-      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+      if (!sessionEmailHeader || !sessionAccountHeader) {
+        console.error('Error verifying Firebase ID token:', error);
+        return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+      }
     }
   }
 
-  if (sessionAccountHeader || sessionEmailHeader) {
-    const fallbackEmail =
-      sessionAccountHeader === 'admin_super_01'
-        ? SUPER_ADMIN_BOUND_EMAIL
-        : 'arjun.mehta@sharedabba.in';
-    const normalizedEmail = (sessionEmailHeader || fallbackEmail).trim().toLowerCase();
+  const normalizedEmail = (sessionEmailHeader || '').trim().toLowerCase();
+  const normalizedUid = (sessionAccountHeader || '').trim();
+  if (normalizedEmail && normalizedEmail.includes('@') && normalizedUid) {
     const isSuperAdmin = normalizedEmail === SUPER_ADMIN_BOUND_EMAIL;
-
     req.user = {
-      uid: isSuperAdmin ? 'admin_super_01' : sessionAccountHeader || `creator_${normalizedEmail.replace(/[^a-z0-9]/g, '_')}`,
+      uid: isSuperAdmin ? 'admin_super_01' : normalizedUid,
       email: normalizedEmail,
       name:
-        sessionNameHeader ||
-        (isSuperAdmin
-          ? 'Rudra (Super Admin)'
-          : normalizedEmail === 'arjun.mehta@sharedabba.in'
-          ? 'Arjun Mehta Studio'
-          : normalizedEmail.split('@')[0]),
+        (sessionNameHeader || '').trim() ||
+        (isSuperAdmin ? 'Rudra (Super Admin)' : normalizedEmail.split('@')[0]),
       role: isSuperAdmin ? 'super_admin' : 'creator',
     };
     return next();
@@ -90,4 +87,42 @@ export const requireAuth = async (
 
   return res.status(401).json({ error: 'Unauthorized: Missing authentication credentials' });
 };
+
+/**
+ * Populates req.user when a valid Firebase ID token or session header is provided,
+ * or proceeds as anonymous when no credentials are sent.
+ */
+export const optionalAuth = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const authHeader = req.headers.authorization;
+  const sessionAccountHeader = req.headers['x-sharedabba-uid'] as string | undefined;
+  const sessionEmailHeader = req.headers['x-sharedabba-email'] as string | undefined;
+
+  if (!authHeader && (!sessionAccountHeader || !sessionEmailHeader)) {
+    return next();
+  }
+
+  let settled = false;
+  const fakeRes = {
+    status: () => ({
+      json: () => {
+        if (!settled) {
+          settled = true;
+          next();
+        }
+      },
+    }),
+  } as unknown as Response;
+
+  await requireAuth(req, fakeRes, () => {
+    if (!settled) {
+      settled = true;
+      next();
+    }
+  });
+};
+
 

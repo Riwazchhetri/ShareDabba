@@ -372,10 +372,10 @@ export interface DynamicCpmTiers {
 }
 
 export function getDynamicCpmForAdPlan(
-  pref: AdPreferenceMode,
+  _pref: AdPreferenceMode,
   tiers: DynamicCpmTiers = {
     maxAdsCpmUsd: 3.0,
-    balancedAdsCpmUsd: 2.0,
+    balancedAdsCpmUsd: 3.0,
   }
 ): {
   planName: string;
@@ -383,25 +383,16 @@ export function getDynamicCpmForAdPlan(
   headlineBenefit: string;
   detailBenefit: string;
 } {
-  if (pref === 'more') {
-    return {
-      planName: 'Max Ads Plan',
-      cpmUsd: tiers.maxAdsCpmUsd,
-      headlineBenefit: 'Maximum Potential Earning',
-      detailBenefit:
-        'Multi-slot VAST delivery (pre-roll + eligible mid-roll) engineered for creators prioritizing highest revenue yield per 1,000 eligible views.',
-    };
-  }
   return {
-    planName: 'Balanced Plan',
-    cpmUsd: tiers.balancedAdsCpmUsd,
-    headlineBenefit: 'Standard Recommended · Optimal Viewer Retention & Steady Yield',
+    planName: 'Official $3.00 CPM Plan',
+    cpmUsd: tiers.maxAdsCpmUsd || 3.0,
+    headlineBenefit: 'Maximum Creator Yield · $3.00 Per 1,000 Verified Views',
     detailBenefit:
-      'The recommended default placement with a single skippable pre-roll and zero mid-roll interruptions, maintaining strong audience retention.',
+      'Multi-slot VAST 4.2 delivery (skippable pre-roll + eligible mid-roll) engineered for maximum creator revenue yield per 1,000 verified views.',
   };
 }
 
-export function getAdFrequencyCapForPreference(pref: AdPreferenceMode): {
+export function getAdFrequencyCapForPreference(_pref: AdPreferenceMode): {
   maxAdsPerSession: number;
   preRollProbability: number;
   midRollEnabled: boolean;
@@ -410,30 +401,15 @@ export function getAdFrequencyCapForPreference(pref: AdPreferenceMode): {
   planTitle: string;
   description: string;
 } {
-  switch (pref) {
-    case 'more':
-      return {
-        maxAdsPerSession: 4,
-        preRollProbability: 1.0,
-        midRollEnabled: true,
-        countdownSeconds: 5,
-        targetCpmUsd: 3.0,
-        planTitle: 'Max Ads ($3.00 CPM)',
-        description:
-          'Max Ads Plan ($3.00 target eCPM): Maximum potential earning with pre-roll + mid-roll ad placements.',
-      };
-    case 'balanced':
-    case 'reduced':
-    default:
-      return {
-        maxAdsPerSession: 2,
-        preRollProbability: 1.0,
-        midRollEnabled: false,
-        countdownSeconds: 5,
-        targetCpmUsd: 2.0,
-        planTitle: 'Balanced ($2.00 CPM)',
-        description:
-          'Balanced Plan ($2.00 target eCPM): Standard recommended placement with single skippable pre-roll and zero mid-rolls.',
-      };
-  }
+  return {
+    maxAdsPerSession: 4,
+    preRollProbability: 1.0,
+    midRollEnabled: true,
+    countdownSeconds: 5,
+    targetCpmUsd: 3.0,
+    planTitle: 'Official $3.00 CPM Plan',
+    description:
+      'Official $3.00 CPM Plan: Maximum creator earning with VAST 4.2 pre-roll + mid-roll ad placements.',
+  };
 }
+

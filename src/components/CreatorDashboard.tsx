@@ -127,7 +127,7 @@ export const DashboardThemeSwitcher: React.FC<{
     >
       {darkMode ? (
         <>
-          <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <Sun className="w-3.5 h-3.5 text-sky-400 shrink-0" />
           <span>Switch to Light Mode</span>
         </>
       ) : (
@@ -182,8 +182,8 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
   const [uploadFeedback, setUploadFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   // Withdraw & UPI Form State
-  const [upiInput, setUpiInput] = useState(dashboardData?.user?.upiId || 'arjunmehta@okhdfcbank');
-  const [withdrawAmountUsd, setWithdrawAmountUsd] = useState<string>('10.00');
+  const [upiInput, setUpiInput] = useState(dashboardData?.user?.upiId || '');
+  const [withdrawAmountUsd, setWithdrawAmountUsd] = useState<string>('5.00');
   const [withdrawFeedback, setWithdrawFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [submittingWithdraw, setSubmittingWithdraw] = useState(false);
   const [syncingFx, setSyncingFx] = useState(false);
@@ -197,9 +197,15 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
   const [referralFeedback, setReferralFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   // Settings Form State
-  const [settingsName, setSettingsName] = useState(dashboardData?.user?.displayName || 'Arjun Mehta Studio');
+  const [settingsName, setSettingsName] = useState(dashboardData?.user?.displayName || '');
   const [settings2FA, setSettings2FA] = useState(dashboardData?.user?.twoFactorEnabled ?? true);
   const [settingsSavedMsg, setSettingsSavedMsg] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    setUpiInput(dashboardData?.user?.upiId || '');
+    setSettingsName(dashboardData?.user?.displayName || '');
+    setSettings2FA(dashboardData?.user?.twoFactorEnabled ?? true);
+  }, [dashboardData?.user?.upiId, dashboardData?.user?.displayName, dashboardData?.user?.twoFactorEnabled]);
 
   // Support Form State
   const [supportSubject, setSupportSubject] = useState('');
@@ -238,15 +244,29 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
 
   if (!dashboardData) {
     return (
-      <div className="max-w-xl mx-auto px-6 py-20 text-center space-y-4">
-        <h2 className="text-xl font-bold">Creator Session Required</h2>
-        <button
-          type="button"
-          onClick={() => onNavigate('login')}
-          className="px-4 py-2 rounded-md bg-neutral-950 text-white text-xs font-semibold"
-        >
-          Sign In to Creator Dashboard
-        </button>
+      <div className="max-w-xl mx-auto px-6 py-20 text-center space-y-5">
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-neutral-950 dark:text-white">No Active Creator Account</h2>
+          <p className="text-xs text-neutral-600 dark:text-neutral-400">
+            Sign in or create a new creator account to access your private dashboard, upload files, and track earnings.
+          </p>
+        </div>
+        <div className="flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => onNavigate('register')}
+            className="px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
+          >
+            Sign Up with Google
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('login')}
+            className="px-4 py-2.5 rounded-lg bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-semibold cursor-pointer"
+          >
+            Sign In to Account
+          </button>
+        </div>
       </div>
     );
   }
@@ -270,7 +290,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
   const totalMonetizedViews = files.reduce((acc, f) => acc + f.monetizedViewsCount, 0);
   const totalEstimatedUsd = files.reduce((acc, f) => acc + Number(f.estimatedEarningsUsd), 0);
   const effectiveCpm =
-    totalMonetizedViews > 0 ? (totalEstimatedUsd / totalMonetizedViews) * 1000 : Number(rules?.targetCpmUsd || 2.0);
+    totalMonetizedViews > 0 ? (totalEstimatedUsd / totalMonetizedViews) * 1000 : Number(rules?.targetCpmUsd || 3.0);
   const inrRate = Number(customCodes?.usdToInrRate || rules?.usdToInrRate || 86.45);
   const usdtInrRate = Number(customCodes?.usdtToInrRate || 88.85);
   const upiMinUsd = Number(customCodes?.upiMinWithdrawalUsd ?? rules?.minWithdrawalUsd ?? 5.0);
@@ -286,7 +306,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
   const activeNetUsd = Math.max(0, Number(withdrawAmountUsd || 0) - activeFeeUsd);
 
   // Referral Link, Sign-Ups & Pending Bonus Calculations
-  const activeRefCode = referralCode?.code || user.referralCode || 'ARJUN-SD26';
+  const activeRefCode = referralCode?.code || user.referralCode || 'SD-REF';
   const uniqueReferralUrl = `${window.location.origin}/?ref=${activeRefCode}`;
   const pendingReferralEvents = referralEvents.filter((ev) => ev.status === 'pending');
   const creditedReferralEvents = referralEvents.filter((ev) => ev.status !== 'pending');
@@ -304,14 +324,14 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
   );
   const referralClicksCount = Math.max(
     Number(referralCode?.clicksCount || 0),
-    totalReferralSignups * 8
+    totalReferralSignups
   );
   const eligibleReferralsCount = Math.max(
     Number(referralCode?.eligibleReferralsCount || 0),
     creditedReferralEvents.length
   );
   const referralConversionPct =
-    referralClicksCount > 0 ? ((totalReferralSignups / referralClicksCount) * 100).toFixed(1) : '7.7';
+    referralClicksCount > 0 ? ((totalReferralSignups / referralClicksCount) * 100).toFixed(1) : '0.0';
   const filteredReferralEvents = referralEvents.filter((ev) => {
     if (referralFilter === 'pending') return ev.status === 'pending';
     if (referralFilter === 'credited') return ev.status !== 'pending';
@@ -334,45 +354,45 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
   const rawMonthlySeries = [
     {
       month: 'May 2026',
-      earnedUsd: 18.4,
-      upiPayoutUsd: 12.0,
+      earnedUsd: 0.0,
+      upiPayoutUsd: 0.0,
       usdtPayoutUsd: 0.0,
-      monetizedViews: 7800,
+      monetizedViews: 0,
     },
     {
       month: 'Jun 2026',
-      earnedUsd: 26.8,
-      upiPayoutUsd: 18.5,
+      earnedUsd: 0.0,
+      upiPayoutUsd: 0.0,
       usdtPayoutUsd: 0.0,
-      monetizedViews: 11200,
+      monetizedViews: 0,
     },
     {
       month: 'Jul 2026',
-      earnedUsd: 38.5,
-      upiPayoutUsd: 15.0,
-      usdtPayoutUsd: 20.0,
-      monetizedViews: 15400,
+      earnedUsd: 0.0,
+      upiPayoutUsd: 0.0,
+      usdtPayoutUsd: 0.0,
+      monetizedViews: 0,
     },
     {
       month: 'Aug 2026',
-      earnedUsd: 46.2,
-      upiPayoutUsd: 22.0,
-      usdtPayoutUsd: 20.0,
-      monetizedViews: 18900,
+      earnedUsd: 0.0,
+      upiPayoutUsd: 0.0,
+      usdtPayoutUsd: 0.0,
+      monetizedViews: 0,
     },
     {
       month: 'Sep 2026',
-      earnedUsd: 54.6,
-      upiPayoutUsd: 28.5,
-      usdtPayoutUsd: 22.0,
-      monetizedViews: 21800,
+      earnedUsd: 0.0,
+      upiPayoutUsd: 0.0,
+      usdtPayoutUsd: 0.0,
+      monetizedViews: 0,
     },
     {
       month: 'Oct 2026',
-      earnedUsd: Number(Math.max(42.5, currentMonthEarnedUsd).toFixed(2)),
-      upiPayoutUsd: Number(Math.max(19.5, currentMonthWithdrawnUpiUsd).toFixed(2)),
-      usdtPayoutUsd: Number(Math.max(20.0, currentMonthWithdrawnUsdtUsd).toFixed(2)),
-      monetizedViews: Math.max(16500, totalMonetizedViews),
+      earnedUsd: Number(currentMonthEarnedUsd.toFixed(2)),
+      upiPayoutUsd: Number(currentMonthWithdrawnUpiUsd.toFixed(2)),
+      usdtPayoutUsd: Number(currentMonthWithdrawnUsdtUsd.toFixed(2)),
+      monetizedViews: totalMonetizedViews,
     },
   ];
 
@@ -707,24 +727,18 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
             })}
           </nav>
 
-          {/* 2 Monetization Plans Summary Card ($2.00 Balanced & $3.00 Max Ads) */}
+          {/* Unified Official $3.00 CPM Plan Summary Card */}
           <div className="p-4 rounded-xl color-graded-panel space-y-2.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-neutral-900 dark:text-white">Monetization Plans</span>
-              <span className="font-mono text-[11px] text-blue-600 dark:text-blue-400 font-semibold">
-                2 PLANS ACTIVE
+              <span className="font-semibold text-neutral-900 dark:text-white">Monetization Plan</span>
+              <span className="font-mono text-[11px] text-sky-600 dark:text-sky-400 font-semibold">
+                OFFICIAL $3.00 TIER
               </span>
             </div>
             <div className="space-y-1.5 text-[11px] font-mono">
-              <div className="flex items-center justify-between px-2.5 py-1.5 rounded bg-neutral-100/80 dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800">
-                <span className="text-neutral-700 dark:text-neutral-300">Balanced Plan</span>
-                <span className="font-bold text-neutral-950 dark:text-white">
-                  ${Number(customCodes?.balancedAdsCpmUsd ?? 2.0).toFixed(2)} CPM
-                </span>
-              </div>
-              <div className="flex items-center justify-between px-2.5 py-1.5 rounded bg-blue-50/70 dark:bg-blue-950/30 border border-blue-500/30">
-                <span className="text-blue-700 dark:text-blue-300">Max Ads Plan</span>
-                <span className="font-bold text-blue-700 dark:text-blue-400">
+              <div className="flex items-center justify-between px-2.5 py-2 rounded bg-sky-50/70 dark:bg-sky-950/30 border border-sky-500/35">
+                <span className="text-sky-700 dark:text-sky-300 font-semibold">Official $3.00 CPM</span>
+                <span className="font-bold text-sky-700 dark:text-sky-400">
                   ${Number(customCodes?.maxAdsCpmUsd ?? 3.0).toFixed(2)} CPM
                 </span>
               </div>
@@ -834,7 +848,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                         Monthly Creator Earnings & Historical Payouts (UPI + USDT)
                       </h2>
                       <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                        6-month comparison of verified ad earnings ($2.00 Balanced & $3.00 Max Ads) vs. settled India UPI and Global USDT payouts.
+                        6-month comparison of verified ad earnings ($3.00 CPM Plan) vs. settled India UPI and Global USDT payouts.
                       </p>
                     </div>
 
@@ -868,7 +882,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                         onClick={() => onChangeSection('withdraw')}
                         className="px-3.5 py-1.5 rounded-lg bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-semibold inline-flex items-center gap-1.5"
                       >
-                        <Zap className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600" />
+                        <Zap className="w-3.5 h-3.5 text-sky-400 dark:text-sky-600" />
                         <span>Request Payout</span>
                       </button>
                     </div>
@@ -960,7 +974,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                         <Bar
                           dataKey="usdtPayoutDisplay"
                           name={chartCurrency === 'INR' ? 'USDT Payout Settled (₹ INR)' : 'USDT Payout Settled (USDT)'}
-                          fill="#f59e0b"
+                          fill="#0ea5e9"
                           radius={[6, 6, 0, 0]}
                           maxBarSize={36}
                         />
@@ -976,7 +990,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                   <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-blue-600 dark:text-blue-400 font-semibold">
                     <span>CREATOR REFERRAL PARTNER ({rules?.referralCommissionPercent || '10.00'}% BONUS)</span>
                     <span aria-hidden="true">·</span>
-                    <span className="text-amber-600 dark:text-amber-400">
+                    <span className="text-sky-600 dark:text-sky-400">
                       PENDING BONUS: ${pendingReferralBonusUsd.toFixed(2)} USD (≈ ₹{(pendingReferralBonusUsd * inrRate).toFixed(0)} INR)
                     </span>
                   </div>
@@ -1606,11 +1620,11 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
             <div className="space-y-6">
               <div className="p-5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-sm font-bold text-neutral-950 dark:text-white">
+                    <h2 className="text-sm font-bold text-neutral-950 dark:text-white">
                     Active Monetization Calculation Formula:{' '}
                     {rules?.activeMode === 'revenue_share'
                       ? `Mode B — Verified Advertising Revenue Share (${rules.revenueSharePercent}%)`
-                      : `Mode A — Fixed Creator CPM ($${rules?.targetCpmUsd || '2.00'} per 1,000 Eligible Views)`}
+                      : `Mode A — Fixed Creator CPM ($${rules?.targetCpmUsd || '3.00'} per 1,000 Eligible Views)`}
                   </h2>
                   <span className="text-xs font-mono text-neutral-500">
                     Min Watch Qualification: {rules?.minWatchSeconds || 5}s
@@ -1629,11 +1643,11 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                   </h3>
                   <div className="space-y-3 text-xs">
                     {[
-                      { country: 'India (IN)', share: '58%', cpm: '$2.00', views: Math.round(totalMonetizedViews * 0.58) },
+                      { country: 'India (IN)', share: '58%', cpm: '$3.00', views: Math.round(totalMonetizedViews * 0.58) },
                       { country: 'United States (US)', share: '18%', cpm: '$3.40', views: Math.round(totalMonetizedViews * 0.18) },
                       { country: 'United Kingdom (GB)', share: '12%', cpm: '$3.10', views: Math.round(totalMonetizedViews * 0.12) },
-                      { country: 'Germany & EU (DE)', share: '8%', cpm: '$2.80', views: Math.round(totalMonetizedViews * 0.08) },
-                      { country: 'Singapore (SG)', share: '4%', cpm: '$2.60', views: Math.round(totalMonetizedViews * 0.04) },
+                      { country: 'Germany & EU (DE)', share: '8%', cpm: '$3.00', views: Math.round(totalMonetizedViews * 0.08) },
+                      { country: 'Singapore (SG)', share: '4%', cpm: '$3.00', views: Math.round(totalMonetizedViews * 0.04) },
                     ].map((row) => (
                       <div key={row.country} className="space-y-1">
                         <div className="flex justify-between font-mono tabular-nums">
@@ -1670,7 +1684,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                     </div>
                     <div className="flex justify-between py-2">
                       <span className="text-neutral-600 dark:text-neutral-400">Filtered Bot / Invalid Traffic Deductions</span>
-                      <span className="font-mono tabular-nums text-amber-600">1.8% ($0.00 credited)</span>
+                      <span className="font-mono tabular-nums text-sky-600 dark:text-sky-400">1.8% ($0.00 credited)</span>
                     </div>
                   </div>
                 </div>
@@ -1750,7 +1764,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                   <div className="flex flex-wrap items-start justify-between gap-4 border-b border-neutral-200 dark:border-neutral-800 pb-4">
                     <div className="space-y-1">
                       <h2 className="text-base font-bold text-neutral-950 dark:text-white flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-amber-500 icon-anim-bolt" />
+                        <Zap className="w-4 h-4 text-sky-500 icon-anim-bolt" />
                         <span>Lightning India UPI & Global USDT Payouts</span>
                       </h2>
                       <p className="text-xs text-neutral-600 dark:text-neutral-400">
@@ -1763,20 +1777,21 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                       <button
                         type="button"
                         onClick={() => {
-                          setUpiInput('arjun.mehta@okhdfcbank');
+                          if (!upiInput.includes('@')) {
+                            setUpiInput(user.upiId && user.upiId.includes('@') ? user.upiId : '');
+                          }
                           if (Number(withdrawAmountUsd) < upiMinUsd) {
                             setWithdrawAmountUsd(upiMinUsd.toFixed(2));
                           }
                         }}
                         className="min-h-[34px] px-3 py-1.5 rounded-lg bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-semibold inline-flex items-center gap-1.5"
                       >
-                        <Zap className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600 icon-anim-bolt" />
+                        <Zap className="w-3.5 h-3.5 text-sky-400 dark:text-sky-600 icon-anim-bolt" />
                         <span>Use UPI (${upiMinUsd.toFixed(0)} Min)</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => {
-                          setUpiInput('TX8k9mShareDabbaTetherWallet99A2pL');
                           if (Number(withdrawAmountUsd) < usdtMinUsd) {
                             setWithdrawAmountUsd(usdtMinUsd.toFixed(2));
                           }
@@ -1892,7 +1907,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                       disabled={submittingWithdraw}
                       className="min-h-[44px] w-full py-2.5 rounded-lg bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-semibold inline-flex items-center justify-center gap-2"
                     >
-                      <Zap className="w-4 h-4 text-amber-400 dark:text-amber-600" />
+                      <Zap className="w-4 h-4 text-sky-400 dark:text-sky-600" />
                       <span>
                         {submittingWithdraw
                           ? 'Submitting with Idempotency Key...'
@@ -1996,9 +2011,8 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                     <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
                       Invite filmmakers, educators, and studio creators to ShareDabba. You earn a{' '}
                       <strong className="text-white">{rules?.referralCommissionPercent || '10.00'}% lifetime bonus</strong> on all
-                      verified monetized views generated by your referrals across both the{' '}
-                      <span className="text-cyan-300 font-mono">$2.00 Balanced Plan</span> and{' '}
-                      <span className="text-fuchsia-300 font-mono">$3.00 Max Ads Plan</span>, without deducting a single cent from their payouts.
+                      verified monetized views generated by your referrals on the{' '}
+                      <span className="text-sky-300 font-mono">Official $3.00 CPM Plan</span>, without deducting a single cent from their payouts.
                     </p>
 
                     <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
@@ -2012,7 +2026,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                           readOnly
                           aria-label="Unique Referral Link"
                           value={uniqueReferralUrl}
-                          className="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl border border-blue-400/40 bg-slate-950/90 text-cyan-200 focus:outline-none"
+                          className="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl border border-blue-400/40 bg-slate-950/90 text-sky-200 focus:outline-none"
                         />
                       </div>
                       <button
@@ -2022,7 +2036,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                           setCopiedId('ref-link-main');
                           setTimeout(() => setCopiedId(null), 1600);
                         }}
-                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 via-blue-500 to-fuchsia-500 text-white text-xs font-extrabold tracking-wide shadow-md flex items-center justify-center gap-1.5 shrink-0"
+                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-400 via-blue-600 to-blue-700 text-white text-xs font-extrabold tracking-wide shadow-md flex items-center justify-center gap-1.5 shrink-0"
                       >
                         {copiedId === 'ref-link-main' ? (
                           <>
@@ -2062,16 +2076,16 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
 
               {/* 4-Card Referral Sign-Ups & Pending Bonus KPI Strip */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 rounded-xl color-graded-panel border-amber-500/40 space-y-1">
+                <div className="p-4 rounded-xl color-graded-panel border-sky-500/40 space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-neutral-500 font-medium">Pending Referral Bonus</span>
-                    <span className="font-mono text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                    <span className="font-mono text-[10px] text-sky-600 dark:text-sky-400 font-semibold">
                       {pendingReferralEvents.length} PENDING
                     </span>
                   </div>
                   <p
                     id="pending-referral-bonus-usd"
-                    className="text-2xl font-bold font-mono tabular-nums text-amber-600 dark:text-amber-400"
+                    className="text-2xl font-bold font-mono tabular-nums text-sky-600 dark:text-sky-400"
                   >
                     ${pendingReferralBonusUsd.toFixed(2)} USD
                   </p>
@@ -2119,7 +2133,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                 <div className="p-4 rounded-xl color-graded-panel space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-neutral-500 font-medium">Combined Referral Value</span>
-                    <span className="font-mono text-[10px] text-fuchsia-600 dark:text-fuchsia-400 font-semibold">
+                    <span className="font-mono text-[10px] text-sky-600 dark:text-sky-400 font-semibold">
                       10% TIER
                     </span>
                   </div>
@@ -2140,7 +2154,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                       Track New Creator Sign-Up &amp; Manage Pending Referral Bonuses
                     </h3>
                     <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                      Test or log a referred creator registration on the $2.00 Balanced or $3.00 Max Ads plan, or settle verified pending referral bonuses into your available wallet balance.
+                      Test or log a referred creator registration on the Official $3.00 CPM Plan, or settle verified pending referral bonuses into your available wallet balance.
                     </p>
                   </div>
                   {pendingReferralEvents.length > 0 && (
@@ -2170,7 +2184,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                       type="email"
                       value={newRefEmailInput}
                       onChange={(e) => setNewRefEmailInput(e.target.value)}
-                      placeholder="e.g. ananya.edits@ filmmaker.in"
+                      placeholder="e.g. ananya.edits@filmmaker.in"
                       className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950"
                     />
                   </div>
@@ -2184,8 +2198,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                       onChange={(e) => setNewRefPlanTier(e.target.value as 'balanced' | 'max')}
                       className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950"
                     >
-                      <option value="max">$3.00 Max Ads Plan (+$1.50 Pending Bonus)</option>
-                      <option value="balanced">$2.00 Balanced Plan (+$1.10 Pending Bonus)</option>
+                      <option value="max">Official $3.00 CPM Plan (+$1.50 Pending Bonus)</option>
                     </select>
                   </div>
                   <div className="sm:col-span-3 flex items-end">
@@ -2230,7 +2243,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                       onClick={() => setReferralFilter('pending')}
                       className={`px-3 py-1 rounded-md text-xs font-mono font-semibold transition-colors ${
                         referralFilter === 'pending'
-                          ? 'bg-amber-500 text-neutral-950'
+                          ? 'bg-sky-500 text-neutral-950'
                           : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
                       }`}
                     >
@@ -2280,7 +2293,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                             </td>
                             <td className="py-3 px-4 font-mono text-[11px]">
                               {isPending ? (
-                                <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                                <span className="text-sky-600 dark:text-sky-400 font-semibold">
                                   PENDING BONUS · Awaiting Verification
                                 </span>
                               ) : (
@@ -2292,7 +2305,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                             <td
                               className={`py-3 px-4 text-right font-mono tabular-nums font-bold ${
                                 isPending
-                                  ? 'text-amber-600 dark:text-amber-400'
+                                  ? 'text-sky-600 dark:text-sky-400'
                                   : 'text-emerald-700 dark:text-emerald-400'
                               }`}
                             >
@@ -2335,12 +2348,12 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                   Active Creator Monetization &amp; Referral Promotions
                 </h2>
                 <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                  Maximize your channel revenue using our 2 streamlined CPM tiers ($2.00 Balanced Plan &amp; $3.00 Max Ads Plan) alongside the {rules?.referralCommissionPercent || '10.00'}% Creator Referral Partner Program.
+                  Maximize your channel revenue using our unified Official $3.00 CPM Plan alongside the {rules?.referralCommissionPercent || '10.00'}% Creator Referral Partner Program.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                  <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/20 space-y-2">
-                    <p className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">
-                      MAX ADS TIER ($3.00 CPM)
+                  <div className="p-4 rounded-xl border border-sky-500/30 bg-sky-50/50 dark:bg-sky-950/20 space-y-2">
+                    <p className="text-xs font-mono font-bold text-sky-600 dark:text-sky-400">
+                      OFFICIAL $3.00 CPM PLAN
                     </p>
                     <p className="text-sm font-bold text-neutral-950 dark:text-white">
                       $3.00 USD (₹{(3 * inrRate).toFixed(2)} INR) per 1,000 Verified Views

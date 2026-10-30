@@ -26,7 +26,7 @@ export interface SupportTicketProps {
 }
 
 export const SupportTicket: React.FC<SupportTicketProps> = ({
-  defaultEmail = 'arjun.mehta@sharedabba.in',
+  defaultEmail = '',
   defaultCategory = '',
   uid,
   authHeaders = {},
@@ -368,7 +368,7 @@ export const SupportTicket: React.FC<SupportTicketProps> = ({
                       className={`font-semibold uppercase ${
                         t.status === 'resolved'
                           ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-amber-600 dark:text-amber-400'
+                          : 'text-sky-600 dark:text-sky-400'
                       }`}
                     >
                       {t.status}

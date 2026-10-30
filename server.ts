@@ -3,7 +3,8 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import crypto from 'crypto';
 import * as dotenv from 'dotenv';
-import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
+import { requireAuth, optionalAuth, AuthRequest } from './src/middleware/auth.ts';
+import { verifySignedPlaybackToken } from './src/utils/playback-security.ts';
 import {
   getPublicBootstrapData,
   getCreatorDashboardData,
@@ -26,6 +27,23 @@ import {
   syncOrAdjustLiveUsdtInrRates,
   recordReferralSignupOrSettleBonus,
   getFileBySlugForShare,
+  registerOrLoginAndroidSession,
+  getUserSessionsList,
+  revokeUserSession,
+  getAccountProfileData,
+  updateAccountProfileData,
+  getHomeVideoFeed,
+  getFeaturedOrLatestVideos,
+  getCategoriesAndSearchVideos,
+  getVideoDetailsForViewer,
+  authorizeVideoPlayback,
+  updateOrDeleteCreatorVideo,
+  getRecentlyWatchedVideos,
+  getPublicUploaderProfile,
+  getCreatorEarningsAndWithdrawals,
+  getUserNotificationsList,
+  markNotificationRead,
+  getAndroidRemoteConfig,
 } from './src/db/repository.ts';
 
 dotenv.config();
@@ -200,9 +218,12 @@ async function startServer() {
   });
 
   // Record server-verified playback & VAST ad impression
-  app.post('/api/playback/verify', async (req, res) => {
+  app.post('/api/playback/verify', optionalAuth, async (req: AuthRequest, res) => {
     try {
-      const result = await recordVerifiedPlaybackAndAdImpression(req.body);
+      const result = await recordVerifiedPlaybackAndAdImpression({
+        ...req.body,
+        viewerUid: req.user?.uid || req.body?.viewerUid || undefined,
+      });
       res.json(result);
     } catch (error: any) {
       console.error('Failed to verify playback event:', error);
@@ -589,49 +610,360 @@ async function startServer() {
     ]);
   });
 
-  // 1. Android API: Authentication & Account Information
+  // 1 & 2. User Registration, Login, Logout & Session Management
+  app.post(
+    '/api/v1/auth/register',
+    createRateLimiter(60_000, 20),
+    requireAuth,
+    async (req: AuthRequest, res) => {
+      try {
+        const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+        const sessionData = await registerOrLoginAndroidSession({
+          uid: req.user!.uid,
+          email: req.user!.email,
+          displayName: req.body?.displayName,
+          deviceName: req.body?.deviceName || (req.headers['user-agent'] as string) || 'ShareDabba Android App',
+          ipAddress: ip,
+          referralCodeUsed: req.body?.referralCode,
+        });
+        res.status(201).json(sessionData);
+      } catch (error: any) {
+        res.status(400).json({ error: error.message || 'Registration failed' });
+      }
+    }
+  );
+
+  app.post(
+    '/api/v1/auth/login',
+    createRateLimiter(60_000, 30),
+    requireAuth,
+    async (req: AuthRequest, res) => {
+      try {
+        const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+        const sessionData = await registerOrLoginAndroidSession({
+          uid: req.user!.uid,
+          email: req.user!.email,
+          displayName: req.body?.displayName,
+          deviceName: req.body?.deviceName || (req.headers['user-agent'] as string) || 'ShareDabba Android App',
+          ipAddress: ip,
+        });
+        res.json(sessionData);
+      } catch (error: any) {
+        res.status(400).json({ error: error.message || 'Login session creation failed' });
+      }
+    }
+  );
+
+  app.post('/api/v1/auth/logout', requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const result = await revokeUserSession(req.user!.uid, req.user!.email, {
+        sessionId: req.body?.sessionId ? Number(req.body.sessionId) : undefined,
+        sessionToken: req.body?.sessionToken ? String(req.body.sessionToken) : undefined,
+        revokeAll: Boolean(req.body?.revokeAll),
+      });
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Logout failed' });
+    }
+  });
+
+  app.get('/api/v1/auth/sessions', requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const sessionsList = await getUserSessionsList(req.user!.uid, req.user!.email);
+      res.json({ sessions: sessionsList });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to load active sessions' });
+    }
+  });
+
+  app.delete('/api/v1/auth/sessions/:sessionId', requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const result = await revokeUserSession(req.user!.uid, req.user!.email, {
+        sessionId: Number(req.params.sessionId),
+      });
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Failed to revoke session' });
+    }
+  });
+
+  // 3. User Profile & Account Information
   app.get('/api/v1/account', requireAuth, async (req: AuthRequest, res) => {
     try {
-      const data = await getCreatorDashboardData(req.user!.uid, req.user!.email);
+      const [profileData, sessionsList, notificationsData] = await Promise.all([
+        getAccountProfileData(req.user!.uid, req.user!.email),
+        getUserSessionsList(req.user!.uid, req.user!.email),
+        getUserNotificationsList(req.user!.uid, req.user!.email),
+      ]);
       res.json({
-        user: data.user,
+        user: profileData.user,
+        profile: profileData.profile,
+        wallet: profileData.wallet,
         storage: {
-          usedBytes: data.user.storageUsedBytes,
-          limitBytes: data.user.storageLimitBytes,
+          usedBytes: profileData.user.storageUsedBytes,
+          limitBytes: profileData.user.storageLimitBytes,
         },
-        sessions: data.sessions,
-        notifications: data.notifications,
+        sessions: sessionsList,
+        notifications: notificationsData.items,
+        unreadNotificationsCount: notificationsData.unreadCount,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message || 'Failed to fetch account profile' });
     }
   });
 
-  // 2. Android API: Video Metadata & Playback Configuration
-  app.get('/api/v1/videos/:slug', async (req, res) => {
+  app.patch('/api/v1/account', createRateLimiter(60_000, 20), requireAuth, async (req: AuthRequest, res) => {
     try {
-      const resolved = await getFileBySlugForShare(req.params.slug);
-      if (!resolved) {
-        res.status(404).json({ error: 'Video or file not found' });
+      const updated = await updateAccountProfileData(req.user!.uid, req.user!.email, req.body || {});
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Failed to update account profile' });
+    }
+  });
+
+  // 4. Home Video Feed (Featured + Latest + Categories)
+  app.get('/api/v1/feed/home', async (req, res) => {
+    try {
+      const limit = Number(req.query.limit || 20);
+      const feed = await getHomeVideoFeed(limit);
+      res.json(feed);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to load home video feed' });
+    }
+  });
+
+  // 5. Featured & Latest Videos (Note: declared BEFORE /api/v1/videos/:slug)
+  app.get('/api/v1/videos/featured', async (req, res) => {
+    try {
+      const data = await getFeaturedOrLatestVideos({
+        type: 'featured',
+        limit: Number(req.query.limit || 20),
+        offset: Number(req.query.offset || 0),
+      });
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to load featured videos' });
+    }
+  });
+
+  app.get('/api/v1/videos/latest', async (req, res) => {
+    try {
+      const data = await getFeaturedOrLatestVideos({
+        type: 'latest',
+        limit: Number(req.query.limit || 20),
+        offset: Number(req.query.offset || 0),
+      });
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to load latest videos' });
+    }
+  });
+
+  // 6. Categories & Search (Note: declared BEFORE /api/v1/videos/:slug)
+  app.get('/api/v1/categories', async (_req, res) => {
+    try {
+      const data = await getCategoriesAndSearchVideos({ limit: 1 });
+      res.json({ categories: data.categories });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to load categories' });
+    }
+  });
+
+  app.get('/api/v1/videos/search', async (req, res) => {
+    try {
+      const data = await getCategoriesAndSearchVideos({
+        q: String(req.query.q || ''),
+        category: String(req.query.category || ''),
+        fileType: String(req.query.fileType || ''),
+        sort: req.query.sort === 'popular' ? 'popular' : 'latest',
+        limit: Number(req.query.limit || 20),
+        offset: Number(req.query.offset || 0),
+      });
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to search videos' });
+    }
+  });
+
+  // 9. Recently Watched Videos (Note: declared BEFORE /api/v1/videos/:slug)
+  app.get('/api/v1/videos/recently-watched', requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const limit = Number(req.query.limit || 20);
+      const items = await getRecentlyWatchedVideos(req.user!.uid, limit);
+      res.json({ items });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to load recently watched videos' });
+    }
+  });
+
+  // 7. Video Details, Metadata, Owner Update & Soft-Delete
+  app.get('/api/v1/videos/:slug', optionalAuth, async (req: AuthRequest, res) => {
+    try {
+      const result = await getVideoDetailsForViewer({
+        slug: req.params.slug,
+        requesterUid: req.user?.uid || null,
+        requesterEmail: req.user?.email || null,
+      });
+
+      if (result.status === 'not_found') {
+        res.status(404).json({ error: 'Video not found' });
         return;
       }
-      res.json(resolved);
+      if (result.status === 'unavailable') {
+        res.status(410).json({ error: result.reason, videoId: result.videoId });
+        return;
+      }
+      if (result.status === 'forbidden_private') {
+        res.status(403).json({ error: result.reason, videoId: result.videoId });
+        return;
+      }
+
+      // Also include legacy `file` and `creator` keys alongside canonical `video` for backwards compatibility
+      const resolvedLegacy = await getFileBySlugForShare(req.params.slug);
+      res.json({
+        ...result,
+        file: resolvedLegacy?.file || result.video,
+        creator: resolvedLegacy?.creator || result.video.uploader,
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message || 'Failed to resolve video metadata' });
     }
   });
 
-  // 3. Android API: Canonical Share-Link Resolution (/v/:slug & /?v=:slug compatible)
-  app.get('/api/v1/share/:slug', async (req, res) => {
+  app.patch('/api/v1/videos/:slug', requireAuth, async (req: AuthRequest, res) => {
     try {
-      const resolved = await getFileBySlugForShare(req.params.slug);
-      if (!resolved) {
-        res.status(404).json({ error: 'Shared link not found or quarantined' });
+      const result = await updateOrDeleteCreatorVideo(
+        req.user!.uid,
+        req.user!.email,
+        req.params.slug,
+        'update',
+        req.body || {}
+      );
+      res.json(result);
+    } catch (error: any) {
+      const status = Number(error.httpStatus) || 400;
+      res.status(status).json({ error: error.message || 'Failed to update video metadata' });
+    }
+  });
+
+  app.delete('/api/v1/videos/:slug', requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const result = await updateOrDeleteCreatorVideo(
+        req.user!.uid,
+        req.user!.email,
+        req.params.slug,
+        'delete'
+      );
+      res.json(result);
+    } catch (error: any) {
+      const status = Number(error.httpStatus) || 400;
+      res.status(status).json({ error: error.message || 'Failed to delete video' });
+    }
+  });
+
+  // 8. Secure Video Playback Authorization & Stream Endpoint
+  app.post(
+    '/api/v1/videos/:slug/playback-authorize',
+    createRateLimiter(60_000, 60),
+    optionalAuth,
+    async (req: AuthRequest, res) => {
+      try {
+        const authResult = await authorizeVideoPlayback({
+          slug: req.params.slug,
+          requesterUid: req.user?.uid || null,
+          requesterEmail: req.user?.email || null,
+          password: req.body?.password ? String(req.body.password) : null,
+        });
+
+        if (!authResult.authorized) {
+          res.status(authResult.httpStatus).json({
+            authorized: false,
+            passwordRequired: Boolean((authResult as any).passwordRequired),
+            error: authResult.error,
+          });
+          return;
+        }
+
+        res.json(authResult);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message || 'Playback authorization failed' });
+      }
+    }
+  );
+
+  app.get('/api/stream/:slug', optionalAuth, async (req: AuthRequest, res) => {
+    try {
+      const slug = String(req.params.slug || '').trim();
+      const token = String(req.query.token || req.headers['x-playback-token'] || '');
+
+      const details = await getVideoDetailsForViewer({
+        slug,
+        requesterUid: req.user?.uid || null,
+        requesterEmail: req.user?.email || null,
+      });
+
+      if (details.status === 'not_found') {
+        res.status(404).json({ error: 'Stream not found' });
         return;
       }
+      if (details.status === 'unavailable') {
+        res.status(410).json({ error: details.reason });
+        return;
+      }
+
+      // If video is private or password-protected, require a valid signed playback token
+      if (details.status === 'forbidden_private' || details.video?.passwordProtected || token) {
+        const verified = verifySignedPlaybackToken(token, slug);
+        if (!verified.valid) {
+          res.status(401).json({
+            error: verified.reason || 'Valid playback authorization token is required to stream this video.',
+          });
+          return;
+        }
+      }
+
+      res.json({
+        streamAuthorized: true,
+        videoId: slug,
+        title: details.video?.title,
+        mimeType: details.video?.mimeType || 'video/mp4',
+        durationSeconds: details.video?.durationSeconds || 0,
+        resolution: details.video?.resolution || '1080p',
+        deliveryMode:
+          process.env.S3_ACCESS_KEY_ID && process.env.S3_ACCESS_KEY_ID !== 'YOUR_S3_ACCESS_KEY_ID'
+            ? 's3_presigned_range_stream'
+            : 'managed_studio_stream',
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Stream resolution failed' });
+    }
+  });
+
+  // Canonical Share-Link Resolution (/v/:slug & /?v=:slug compatible)
+  app.get('/api/v1/share/:slug', optionalAuth, async (req: AuthRequest, res) => {
+    try {
+      const details = await getVideoDetailsForViewer({
+        slug: req.params.slug,
+        requesterUid: req.user?.uid || null,
+        requesterEmail: req.user?.email || null,
+      });
+      if (details.status === 'not_found') {
+        res.status(404).json({ error: 'Shared link not found' });
+        return;
+      }
+      if (details.status === 'unavailable') {
+        res.status(410).json({ error: details.reason, videoId: details.videoId });
+        return;
+      }
+      if (details.status === 'forbidden_private') {
+        res.status(403).json({ error: details.reason, videoId: details.videoId });
+        return;
+      }
+
+      const resolved = await getFileBySlugForShare(req.params.slug);
       const appUrl = (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
       const packageName = process.env.ANDROID_PACKAGE_NAME || 'com.sharedabba.app';
-      const slug = resolved.file.slug;
+      const slug = details.video.slug;
       res.json({
         canonicalWebUrl: `${appUrl}/v/${slug}`,
         legacyQueryUrl: `${appUrl}/?v=${slug}`,
@@ -639,14 +971,41 @@ async function startServer() {
         androidIntentUri: `intent://v/${slug}#Intent;scheme=https;package=${packageName};S.browser_fallback_url=${encodeURIComponent(
           `${appUrl}/v/${slug}`
         )};end`,
-        ...resolved,
+        video: details.video,
+        file: resolved?.file,
+        creator: resolved?.creator,
+        monetization: details.monetization,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message || 'Failed to resolve share link' });
     }
   });
 
-  // 4. Android API: Upload Initiation & Quota Pre-Check
+  // 10. User Dashboard (Unified Web & Android Creator Dashboard)
+  app.get('/api/v1/dashboard', requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const data = await getCreatorDashboardData(req.user!.uid, req.user!.email);
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to load creator dashboard' });
+    }
+  });
+
+  // 11. Public Uploader Information (Never exposes email, UPI ID, or private wallet balances)
+  app.get('/api/v1/uploaders/:username', async (req, res) => {
+    try {
+      const profile = await getPublicUploaderProfile(req.params.username);
+      if (!profile) {
+        res.status(404).json({ error: 'Uploader not found' });
+        return;
+      }
+      res.json(profile);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to load uploader information' });
+    }
+  });
+
+  // Upload Initiation & Completion
   app.post('/api/v1/uploads/init', createRateLimiter(60_000, 20), requireAuth, async (req: AuthRequest, res) => {
     try {
       const data = await getCreatorDashboardData(req.user!.uid, req.user!.email);
@@ -675,7 +1034,6 @@ async function startServer() {
     }
   });
 
-  // 5. Android API: Upload Completion
   app.post('/api/v1/uploads/complete', createRateLimiter(60_000, 20), requireAuth, async (req: AuthRequest, res) => {
     try {
       const created = await createUploadedFileRecord(req.user!.uid, req.user!.email, req.body);
@@ -685,17 +1043,20 @@ async function startServer() {
     }
   });
 
-  // 6. Android API: View-Event Reporting
-  app.post('/api/v1/views/report', createRateLimiter(60_000, 60), async (req, res) => {
+  // View-Event Reporting (Supports optional authenticated viewerUid for Recently Watched)
+  app.post('/api/v1/views/report', createRateLimiter(60_000, 60), optionalAuth, async (req: AuthRequest, res) => {
     try {
-      const result = await recordVerifiedPlaybackAndAdImpression(req.body);
+      const result = await recordVerifiedPlaybackAndAdImpression({
+        ...req.body,
+        viewerUid: req.user?.uid || req.body?.viewerUid || undefined,
+      });
       res.json(result);
     } catch (error: any) {
       res.status(400).json({ error: error.message || 'View-event verification failed' });
     }
   });
 
-  // 7. Android API: User Analytics
+  // User Analytics
   app.get('/api/v1/analytics', requireAuth, async (req: AuthRequest, res) => {
     try {
       const data = await getCreatorDashboardData(req.user!.uid, req.user!.email);
@@ -716,7 +1077,7 @@ async function startServer() {
     }
   });
 
-  // 8. Android API: Referral Tracking
+  // Referral Tracking
   app.get('/api/v1/referrals', requireAuth, async (req: AuthRequest, res) => {
     try {
       const data = await getCreatorDashboardData(req.user!.uid, req.user!.email);
@@ -729,10 +1090,10 @@ async function startServer() {
     }
   });
 
-  // 9. Android API: Wallet Balances, Ledger & Withdrawal Requests
+  // 12 & 13. Wallet Balance, Transaction History, Earnings & Withdrawal Requests
   app.get('/api/v1/wallet', requireAuth, async (req: AuthRequest, res) => {
     try {
-      const data = await getCreatorDashboardData(req.user!.uid, req.user!.email);
+      const data = await getCreatorEarningsAndWithdrawals(req.user!.uid, req.user!.email);
       const razorpayConfigured = Boolean(
         process.env.RAZORPAYX_KEY_ID &&
           process.env.RAZORPAYX_KEY_ID !== 'YOUR_RAZORPAYX_KEY_ID' &&
@@ -741,6 +1102,7 @@ async function startServer() {
       );
       res.json({
         wallet: data.wallet,
+        monetizationPlan: data.monetizationPlan,
         ledger: data.ledger,
         withdrawals: data.withdrawals,
         payoutProviderStatus: {
@@ -753,12 +1115,69 @@ async function startServer() {
     }
   });
 
+  app.get('/api/v1/earnings', requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const data = await getCreatorEarningsAndWithdrawals(req.user!.uid, req.user!.email);
+      res.json({
+        wallet: data.wallet,
+        monetizationPlan: data.monetizationPlan,
+        earningEvents: data.earningEvents,
+        ledger: data.ledger,
+        withdrawals: data.withdrawals,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to load earnings data' });
+    }
+  });
+
+  app.get('/api/v1/wallet/withdrawals', requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const data = await getCreatorEarningsAndWithdrawals(req.user!.uid, req.user!.email);
+      res.json({
+        wallet: data.wallet,
+        withdrawals: data.withdrawals,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to load withdrawal history' });
+    }
+  });
+
   app.post('/api/v1/wallet/withdraw', createRateLimiter(60_000, 10), requireAuth, async (req: AuthRequest, res) => {
     try {
       const withdrawal = await createUpiWithdrawalRequest(req.user!.uid, req.user!.email, req.body);
       res.status(201).json(withdrawal);
     } catch (error: any) {
       res.status(400).json({ error: error.message || 'Withdrawal request failed' });
+    }
+  });
+
+  // 14. App Notifications
+  app.get('/api/v1/notifications', requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const data = await getUserNotificationsList(req.user!.uid, req.user!.email);
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to load notifications' });
+    }
+  });
+
+  app.patch('/api/v1/notifications/:id/read', requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const targetId = req.params.id === 'all' ? 'all' : Number(req.params.id);
+      const result = await markNotificationRead(req.user!.uid, req.user!.email, targetId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Failed to mark notification as read' });
+    }
+  });
+
+  // 15. Android Remote Configuration
+  app.get('/api/v1/config/android', async (_req, res) => {
+    try {
+      const config = await getAndroidRemoteConfig();
+      res.json(config);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to load Android remote configuration' });
     }
   });
 

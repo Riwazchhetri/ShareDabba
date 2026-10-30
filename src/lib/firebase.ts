@@ -1,9 +1,15 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import {
+  initializeAuth,
+  getAuth,
+  inMemoryPersistence,
+  browserPopupRedirectResolver,
+  GoogleAuthProvider,
+  Auth,
+} from 'firebase/auth';
 import {
   getFirestore,
   doc,
-  getDocFromServer,
   getDoc,
   setDoc,
   onSnapshot,
@@ -11,9 +17,46 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
+// Clean up any stale cached Firebase Auth tokens in browser storage that could trigger
+// background STS token refresh calls when securetoken.googleapis.com is disabled.
+if (typeof window !== 'undefined') {
+  try {
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      if (!storage) continue;
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < storage.length; i++) {
+        const key = storage.key(i);
+        if (key && key.startsWith('firebase:')) {
+          keysToRemove.push(key);
+        }
+      }
+      for (const k of keysToRemove) {
+        storage.removeItem(k);
+      }
+    }
+    if (window.indexedDB && typeof window.indexedDB.deleteDatabase === 'function') {
+      window.indexedDB.deleteDatabase('firebaseLocalStorageDb');
+    }
+  } catch {
+    // Ignore storage access restrictions in sandboxed iframes
+  }
+}
+
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
+
+function createSafeAuth(): Auth {
+  try {
+    return initializeAuth(app, {
+      persistence: inMemoryPersistence,
+      popupRedirectResolver: browserPopupRedirectResolver,
+    });
+  } catch {
+    return getAuth(app);
+  }
+}
+
+export const auth = createSafeAuth();
 export const googleAuthProvider = new GoogleAuthProvider();
 
 export enum OperationType {
@@ -42,11 +85,25 @@ export interface FirestoreErrorInfo {
   };
 }
 
+export function isStsTokenServiceDisabledError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error || '');
+  return (
+    msg.includes('token-service-api-has-not-been-used') ||
+    msg.includes('securetoken.googleapis.com') ||
+    msg.includes('Fetching auth token failed') ||
+    msg.includes('the client is offline')
+  );
+}
+
 export function handleFirestoreError(
   error: unknown,
   operationType: OperationType,
   path: string | null
-): never {
+): void {
+  if (isStsTokenServiceDisabledError(error)) {
+    // Primary persistence is handled by Cloud SQL PostgreSQL; suppress noisy STS disabled warnings.
+    return;
+  }
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -64,22 +121,20 @@ export function handleFirestoreError(
     operationType,
     path,
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  console.warn('Firestore operation warning:', JSON.stringify(errInfo));
 }
 
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error('Please check your Firebase configuration.');
-    }
+export async function safeGetIdToken(
+  user: { getIdToken?: (forceRefresh?: boolean) => Promise<string> } | null | undefined
+): Promise<string | null> {
+  if (!user || typeof user.getIdToken !== 'function') {
+    return null;
   }
-}
-
-if (typeof window !== 'undefined') {
-  testConnection();
+  try {
+    return await user.getIdToken(false);
+  } catch {
+    return null;
+  }
 }
 
 export async function syncPayoutConfigToFirestore(params: {
@@ -93,6 +148,10 @@ export async function syncPayoutConfigToFirestore(params: {
   balancedAdsCpmUsd: number;
 }) {
   if (!auth.currentUser?.uid || !auth.currentUser?.emailVerified) {
+    return;
+  }
+  const token = await safeGetIdToken(auth.currentUser);
+  if (!token) {
     return;
   }
   const path = 'payoutConfigs/global';
@@ -109,7 +168,7 @@ export async function syncPayoutConfigToFirestore(params: {
       upiFeePercent: Math.min(25, Math.max(0, Number(params.upiFeePercent) || 0)),
       usdtFeePercent: Math.min(25, Math.max(0, Number(params.usdtFeePercent) || 1.5)),
       maxAdsCpmUsd: Math.min(100, Math.max(0.1, Number(params.maxAdsCpmUsd) || 3.0)),
-      balancedAdsCpmUsd: Math.min(100, Math.max(0.1, Number(params.balancedAdsCpmUsd) || 2.0)),
+      balancedAdsCpmUsd: Math.min(100, Math.max(0.1, Number(params.balancedAdsCpmUsd) || 3.0)),
       createdAt: existingSnap.exists() ? existingSnap.data().createdAt : serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -138,15 +197,24 @@ export function subscribeToGlobalPayoutConfig(
 }
 
 export async function syncCreatorProfileToFirestore(
-  user: { uid: string; email?: string | null; displayName?: string | null; emailVerified?: boolean },
+  user: {
+    uid: string;
+    email?: string | null;
+    displayName?: string | null;
+    emailVerified?: boolean;
+    getIdToken?: (forceRefresh?: boolean) => Promise<string>;
+  },
   options?: { adPreference?: 'more' | 'balanced' }
 ) {
   if (!user?.uid || !user.emailVerified) {
     return;
   }
+  const token = await safeGetIdToken(user);
+  if (!token) {
+    return;
+  }
   const cleanUid = user.uid.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128);
   if (!cleanUid) return;
-  const path = `creatorProfiles/${cleanUid}`;
   try {
     const ref = doc(db, 'creatorProfiles', cleanUid);
     const existingSnap = await getDoc(ref);
@@ -162,12 +230,11 @@ export async function syncCreatorProfileToFirestore(
       username: existingSnap.exists() ? existingSnap.data().username : username,
       displayName,
       adPreference,
-      plan: existingSnap.exists() ? existingSnap.data().plan : 'creator',
+      plan: existingSnap.exists() ? existingSnap.data().plan : 'free',
       createdAt: existingSnap.exists() ? existingSnap.data().createdAt : serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
+  } catch {
+    // Non-fatal: PostgreSQL is the primary source of truth
   }
 }
-

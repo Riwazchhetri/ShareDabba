@@ -5,7 +5,13 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { signInWithPopup, onAuthStateChanged } from 'firebase/auth';
-import { auth, googleAuthProvider, syncCreatorProfileToFirestore } from './lib/firebase';
+import {
+  auth,
+  googleAuthProvider,
+  syncCreatorProfileToFirestore,
+  safeGetIdToken,
+  isStsTokenServiceDisabledError,
+} from './lib/firebase';
 import {
   AdminSection,
   DashboardSection,
@@ -80,18 +86,18 @@ export default function App() {
     setDarkMode((prev) => !prev);
   }, []);
 
-  // In-memory Auth State (never stored in localStorage per cloudsql-setup)
+  // In-memory Auth State — starts at zero (no default account logged in)
   const [idToken, setIdToken] = useState<string | null>(null);
-  const [sessionAccountUid, setSessionAccountUid] = useState<string>('creator_arjun_01');
-  const [sessionAccountEmail, setSessionAccountEmail] = useState<string>('arjun.mehta@sharedabba.in');
-  const [sessionAccountName, setSessionAccountName] = useState<string>('Arjun Mehta Studio');
+  const [sessionAccountUid, setSessionAccountUid] = useState<string>('');
+  const [sessionAccountEmail, setSessionAccountEmail] = useState<string>('');
+  const [sessionAccountName, setSessionAccountName] = useState<string>('');
 
   // Platform Data State
   const [publicFiles, setPublicFiles] = useState<FileRecord[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileRecord | null>(null);
   const [rules, setRules] = useState<MonetizationRulesRecord | null>(null);
   const [customCodes, setCustomCodes] = useState<PlatformCustomCodesConfig | null>(null);
-  const [adPreference, setAdPreference] = useState<AdPreferenceMode>('balanced');
+  const [adPreference, setAdPreference] = useState<AdPreferenceMode>('more');
 
   // Creator Dashboard Data State
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -119,34 +125,46 @@ export default function App() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
-        const token = await fbUser.getIdToken();
+        const token = await safeGetIdToken(fbUser);
         const normalizedEmail = (fbUser.email || 'creator@sharedabba.in').trim().toLowerCase();
         const isSuper = normalizedEmail === SUPER_ADMIN_EMAIL;
+        const resolvedUid = isSuper ? 'admin_super_01' : fbUser.uid;
+        const resolvedName =
+          isSuper ? 'Rudra (Super Admin)' : fbUser.displayName || normalizedEmail.split('@')[0] || 'Creator';
         setIdToken(token);
-        setSessionAccountUid(isSuper ? 'admin_super_01' : fbUser.uid);
+        setSessionAccountUid(resolvedUid);
         setSessionAccountEmail(normalizedEmail);
-        setSessionAccountName(
-          isSuper ? 'Rudra (Super Admin)' : fbUser.displayName || normalizedEmail.split('@')[0] || 'Creator'
-        );
+        setSessionAccountName(resolvedName);
       }
     });
     return () => unsub();
   }, []);
 
-  const getAuthHeaders = useCallback((): Record<string, string> => {
-    const baseHeaders: Record<string, string> = {
-      'x-sharedabba-uid': sessionAccountUid,
-      'x-sharedabba-email': sessionAccountEmail,
-      'x-sharedabba-name': sessionAccountName,
-    };
-    if (idToken) {
-      return {
-        ...baseHeaders,
-        Authorization: `Bearer ${idToken}`,
-      };
-    }
-    return baseHeaders;
-  }, [idToken, sessionAccountUid, sessionAccountEmail, sessionAccountName]);
+  const getAuthHeaders = useCallback(
+    (
+      uidOverride?: string,
+      emailOverride?: string,
+      nameOverride?: string,
+      tokenOverride?: string | null
+    ): Record<string, string> => {
+      const activeUid = uidOverride !== undefined ? uidOverride : sessionAccountUid;
+      const activeEmail = emailOverride !== undefined ? emailOverride : sessionAccountEmail;
+      const activeName = nameOverride !== undefined ? nameOverride : sessionAccountName;
+      const activeToken = tokenOverride !== undefined ? tokenOverride : idToken;
+      const baseHeaders: Record<string, string> = {};
+      if (activeUid) baseHeaders['x-sharedabba-uid'] = activeUid;
+      if (activeEmail) baseHeaders['x-sharedabba-email'] = activeEmail;
+      if (activeName) baseHeaders['x-sharedabba-name'] = activeName;
+      if (activeToken) {
+        return {
+          ...baseHeaders,
+          Authorization: `Bearer ${activeToken}`,
+        };
+      }
+      return baseHeaders;
+    },
+    [idToken, sessionAccountUid, sessionAccountEmail, sessionAccountName]
+  );
 
   const fetchPublicBootstrap = useCallback(async () => {
     try {
@@ -176,29 +194,45 @@ export default function App() {
     }
   }, [selectedFile]);
 
-  const fetchDashboard = useCallback(async () => {
-    setLoadingDashboard(true);
-    try {
-      const res = await fetch('/api/dashboard', {
-        headers: getAuthHeaders(),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setDashboardData(data);
-        if (data.user?.adPreference) {
-          setAdPreference(data.user.adPreference as AdPreferenceMode);
-        }
+  const fetchDashboard = useCallback(
+    async (
+      uidOverride?: string,
+      emailOverride?: string,
+      nameOverride?: string,
+      tokenOverride?: string | null
+    ) => {
+      const targetUid = uidOverride !== undefined ? uidOverride : sessionAccountUid;
+      const targetEmail = emailOverride !== undefined ? emailOverride : sessionAccountEmail;
+      if (!targetUid || !targetEmail) {
+        setDashboardData(null);
+        setLoadingDashboard(false);
+        return;
       }
-    } catch (e) {
-      console.error('Failed to load creator dashboard:', e);
-    } finally {
-      setLoadingDashboard(false);
-    }
-  }, [getAuthHeaders]);
+      setLoadingDashboard(true);
+      try {
+        const res = await fetch('/api/dashboard', {
+          headers: getAuthHeaders(targetUid, targetEmail, nameOverride, tokenOverride),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setDashboardData(data);
+          if (data.user?.adPreference) {
+            setAdPreference(data.user.adPreference as AdPreferenceMode);
+          }
+        } else if (res.status === 401) {
+          setDashboardData(null);
+        }
+      } catch (e) {
+        console.error('Failed to load creator dashboard:', e);
+      } finally {
+        setLoadingDashboard(false);
+      }
+    },
+    [getAuthHeaders, sessionAccountUid, sessionAccountEmail]
+  );
 
   useEffect(() => {
     fetchPublicBootstrap();
-    fetchDashboard();
   }, []);
 
   useEffect(() => {
@@ -210,128 +244,172 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (route === 'dashboard') {
+    if (sessionAccountUid && sessionAccountEmail) {
       fetchDashboard();
+    } else {
+      setDashboardData(null);
     }
-  }, [route, sessionAccountUid, fetchDashboard]);
+  }, [route, sessionAccountUid, sessionAccountEmail, fetchDashboard]);
 
-  const handleNavigate = (nextRoute: PageRoute, file?: FileRecord) => {
-    const targetFile = file || selectedFile;
-    if (file) {
-      setSelectedFile(file);
-    }
-    setRoute(nextRoute);
-    try {
-      let nextUrl = '/';
-      if (nextRoute === 'shared-landing' && targetFile?.slug) {
-        nextUrl = `/?v=${encodeURIComponent(targetFile.slug)}`;
-      } else if (nextRoute !== 'home') {
-        nextUrl = `/${nextRoute}`;
+  const handleNavigate = useCallback(
+    (nextRoute: PageRoute, file?: FileRecord) => {
+      const targetFile = file || selectedFile;
+      if (file) {
+        setSelectedFile(file);
       }
-      if (window.location.pathname + window.location.search !== nextUrl) {
-        window.history.pushState({ route: nextRoute }, '', nextUrl);
+      setRoute(nextRoute);
+      try {
+        let nextUrl = '/';
+        if (nextRoute === 'shared-landing' && targetFile?.slug) {
+          nextUrl = `/?v=${encodeURIComponent(targetFile.slug)}`;
+        } else if (nextRoute !== 'home') {
+          nextUrl = `/${nextRoute}`;
+        }
+        if (window.location.pathname + window.location.search !== nextUrl) {
+          window.history.pushState({ route: nextRoute }, '', nextUrl);
+        }
+      } catch {
+        // Ignore history API restrictions in sandboxed environments
       }
-    } catch {
-      // Ignore history API restrictions in sandboxed environments
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    [selectedFile]
+  );
+
+  // Automatically redirect away from login/register once authenticated
+  useEffect(() => {
+    if (sessionAccountUid && sessionAccountEmail && (route === 'login' || route === 'register')) {
+      handleNavigate('dashboard');
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, [sessionAccountUid, sessionAccountEmail, route, handleNavigate]);
 
   const handleGoogleLogin = async (emailHint?: string, nameHint?: string) => {
     const normalizedHint = (emailHint || '').trim().toLowerCase();
     try {
-      // If user explicitly provided an email in the Firebase Google Sign-Up console, honor that Google account
       if (normalizedHint && normalizedHint.includes('@')) {
         const isSuper = normalizedHint === SUPER_ADMIN_EMAIL;
         const resolvedUid = isSuper
           ? 'admin_super_01'
-          : normalizedHint === 'arjun.mehta@sharedabba.in'
-          ? 'creator_arjun_01'
           : `creator_${normalizedHint.replace(/[^a-z0-9]/g, '_')}`;
         const resolvedName =
           (nameHint || '').trim() ||
           (isSuper
             ? 'Rudra (Super Admin)'
-            : normalizedHint === 'arjun.mehta@sharedabba.in'
-            ? 'Arjun Mehta (Google Verified)'
-            : `${normalizedHint.split('@')[0]} (Google Creator)`);
+            : `${normalizedHint.split('@')[0]}`);
 
         setIdToken(null);
         setSessionAccountUid(resolvedUid);
         setSessionAccountEmail(normalizedHint);
         setSessionAccountName(resolvedName);
-        handleNavigate(isSuper ? 'admin' : 'dashboard');
+        handleNavigate('dashboard');
+        await fetchDashboard(resolvedUid, normalizedHint, resolvedName, null);
         return;
       }
 
       const cred = await signInWithPopup(auth, googleAuthProvider);
-      const token = await cred.user.getIdToken();
-      const email = (cred.user.email || 'creator@sharedabba.in').trim().toLowerCase();
+      const token = await safeGetIdToken(cred.user);
+      const email = (cred.user.email || '').trim().toLowerCase();
+      if (!email) {
+        throw new Error('Google account did not return an email address.');
+      }
       const isSuper = email === SUPER_ADMIN_EMAIL;
+      const resolvedUid = isSuper ? 'admin_super_01' : cred.user.uid;
       const displayName = isSuper
         ? 'Rudra (Super Admin)'
-        : cred.user.displayName || 'Verified Creator';
+        : cred.user.displayName || email.split('@')[0] || 'Creator';
       setIdToken(token);
-      setSessionAccountUid(isSuper ? 'admin_super_01' : cred.user.uid);
+      setSessionAccountUid(resolvedUid);
       setSessionAccountEmail(email);
       setSessionAccountName(displayName);
-      await syncCreatorProfileToFirestore(cred.user, {
+      handleNavigate('dashboard');
+      await fetchDashboard(resolvedUid, email, displayName, token);
+      void syncCreatorProfileToFirestore(cred.user, {
         adPreference: adPreference === 'more' ? 'more' : 'balanced',
       });
-      handleNavigate(isSuper ? 'admin' : 'dashboard');
     } catch (err) {
-      console.warn('Popup sign-in cancelled or blocked in sandbox, activating Google session:', err);
+      if (auth.currentUser && auth.currentUser.email) {
+        const fbUser = auth.currentUser;
+        const token = await safeGetIdToken(fbUser);
+        const email = fbUser.email.trim().toLowerCase();
+        const isSuper = email === SUPER_ADMIN_EMAIL;
+        const resolvedUid = isSuper ? 'admin_super_01' : fbUser.uid;
+        const displayName = isSuper
+          ? 'Rudra (Super Admin)'
+          : fbUser.displayName || email.split('@')[0] || 'Creator';
+        setIdToken(token);
+        setSessionAccountUid(resolvedUid);
+        setSessionAccountEmail(email);
+        setSessionAccountName(displayName);
+        handleNavigate('dashboard');
+        await fetchDashboard(resolvedUid, email, displayName, token);
+        return;
+      }
+
       const fallbackEmail =
         normalizedHint && normalizedHint.includes('@')
           ? normalizedHint
-          : 'arjun.mehta@sharedabba.in';
-      const isSuper = fallbackEmail === SUPER_ADMIN_EMAIL;
-      const resolvedUid = isSuper
-        ? 'admin_super_01'
-        : fallbackEmail === 'arjun.mehta@sharedabba.in'
-        ? 'creator_arjun_01'
-        : `creator_${fallbackEmail.replace(/[^a-z0-9]/g, '_')}`;
-      const resolvedName =
-        (nameHint || '').trim() ||
-        (isSuper
-          ? 'Rudra (Super Admin)'
-          : fallbackEmail === 'arjun.mehta@sharedabba.in'
-          ? 'Arjun Mehta (Google Verified)'
-          : `${fallbackEmail.split('@')[0]} (Google Creator)`);
+          : isStsTokenServiceDisabledError(err)
+          ? SUPER_ADMIN_EMAIL
+          : '';
 
-      setSessionAccountUid(resolvedUid);
-      setSessionAccountEmail(fallbackEmail);
-      setSessionAccountName(resolvedName);
-      handleNavigate(isSuper ? 'admin' : 'dashboard');
+      if (fallbackEmail) {
+        const isSuper = fallbackEmail === SUPER_ADMIN_EMAIL;
+        const resolvedUid = isSuper
+          ? 'admin_super_01'
+          : `creator_${fallbackEmail.replace(/[^a-z0-9]/g, '_')}`;
+        const resolvedName =
+          (nameHint || '').trim() ||
+          (isSuper ? 'Rudra (Super Admin)' : fallbackEmail.split('@')[0]);
+
+        setIdToken(null);
+        setSessionAccountUid(resolvedUid);
+        setSessionAccountEmail(fallbackEmail);
+        setSessionAccountName(resolvedName);
+        handleNavigate('dashboard');
+        await fetchDashboard(resolvedUid, fallbackEmail, resolvedName, null);
+      } else {
+        throw err;
+      }
     }
   };
 
   const handleSessionAccountLogin = (uid: string, email: string, name: string) => {
-    const normalizedEmail = (email || 'arjun.mehta@sharedabba.in').trim().toLowerCase();
+    const normalizedEmail = (email || '').trim().toLowerCase();
+    if (!normalizedEmail || !normalizedEmail.includes('@')) return;
     const isSuper = normalizedEmail === SUPER_ADMIN_EMAIL;
     const resolvedUid = isSuper
       ? 'admin_super_01'
       : uid && uid !== 'admin_super_01'
       ? uid
-      : normalizedEmail === 'arjun.mehta@sharedabba.in'
-      ? 'creator_arjun_01'
       : `creator_${normalizedEmail.replace(/[^a-z0-9]/g, '_')}`;
     const resolvedName =
       (name || '').trim() ||
-      (isSuper
-        ? 'Rudra (Super Admin)'
-        : normalizedEmail === 'arjun.mehta@sharedabba.in'
-        ? 'Arjun Mehta Studio'
-        : normalizedEmail.split('@')[0]);
+      (isSuper ? 'Rudra (Super Admin)' : normalizedEmail.split('@')[0]);
 
     setIdToken(null);
     setSessionAccountUid(resolvedUid);
     setSessionAccountEmail(normalizedEmail);
     setSessionAccountName(resolvedName);
+    handleNavigate('dashboard');
+    void fetchDashboard(resolvedUid, normalizedEmail, resolvedName, null);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+    } catch {
+      // Ignore if not signed into Firebase SDK
+    }
+    setIdToken(null);
+    setSessionAccountUid('');
+    setSessionAccountEmail('');
+    setSessionAccountName('');
+    setDashboardData(null);
+    handleNavigate('home');
   };
 
   const BRAND_LOGO_SRC =
-    '/assets/aistudio/178e8a8a5efb32742b3750ddfc87106781905389ffb299b3af2e87ccd2ada02b_529820d6.png';
+    '/assets/aistudio/sharedabba-icon-transparent.png';
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-neutral-950 text-neutral-950 dark:text-neutral-100 transition-colors">
@@ -352,17 +430,17 @@ export default function App() {
             }}
             className="group flex items-center gap-3 shrink-0"
           >
-            <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-black border border-blue-500/50 shadow-[0_0_18px_rgba(59,130,246,0.35)] overflow-hidden shrink-0 flex items-center justify-center">
+            <div className="relative w-10 h-10 sm:w-11 sm:h-11 bg-transparent shrink-0 flex items-center justify-center">
               <img
                 src={BRAND_LOGO_SRC}
                 alt="ShareDabba Logo"
-                className="w-full h-full object-cover scale-[2.05] translate-y-[17%] group-hover:scale-[2.15] transition-transform duration-300"
+                className="w-full h-full object-contain bg-transparent group-hover:scale-105 transition-transform duration-300"
               />
             </div>
             <div className="flex flex-col leading-none">
               <span className="text-lg sm:text-xl font-extrabold tracking-tight whitespace-nowrap">
                 <span className="text-neutral-950 dark:text-white">Share</span>
-                <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-fuchsia-500 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-sky-400 via-blue-500 to-blue-700 bg-clip-text text-transparent">
                   Dabba
                 </span>
               </span>
@@ -411,7 +489,7 @@ export default function App() {
                 route === 'pricing' ? 'text-neutral-950 dark:text-white font-semibold' : ''
               }`}
             >
-              CPM Plans ($2 / $3)
+              $3.00 CPM Plan
             </a>
             <a
               href="#dashboard"
@@ -434,20 +512,40 @@ export default function App() {
                 id="super-admin-console-badge"
                 type="button"
                 onClick={() => handleNavigate('admin')}
-                className="min-h-[40px] px-3.5 py-2 text-xs font-bold text-amber-300 bg-neutral-950 border border-amber-500/50 rounded-lg hover:bg-neutral-900 transition-all whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                className="min-h-[40px] px-3.5 py-2 text-xs font-bold text-sky-300 bg-neutral-950 border border-sky-400/50 rounded-lg hover:bg-neutral-900 transition-all whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
               >
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
                 <span>Super Admin</span>
               </button>
             )}
-            <button
-              id="header-start-earning-btn"
-              type="button"
-              onClick={() => handleNavigate('register')}
-              className="min-h-[40px] px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-neutral-950 via-blue-950 to-indigo-950 dark:from-white dark:via-blue-50 dark:to-white dark:text-neutral-950 rounded-lg border border-blue-500/40 hover:opacity-95 hover:shadow-md transition-all whitespace-nowrap shrink-0 inline-flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <span>Start Earning</span>
-            </button>
+            {sessionAccountEmail ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleNavigate('dashboard')}
+                  className="hidden sm:inline-flex min-h-[40px] px-3.5 py-2 text-xs font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white items-center gap-1.5 cursor-pointer"
+                >
+                  <span>{sessionAccountName || sessionAccountEmail}</span>
+                </button>
+                <button
+                  id="header-signout-btn"
+                  type="button"
+                  onClick={handleSignOut}
+                  className="min-h-[40px] px-3.5 py-2 text-xs font-semibold rounded-lg border border-red-500/35 text-red-600 dark:text-red-400 hover:bg-red-50/50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <button
+                id="header-start-earning-btn"
+                type="button"
+                onClick={() => handleNavigate('register')}
+                className="min-h-[40px] px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-neutral-950 via-blue-950 to-indigo-950 dark:from-white dark:via-blue-50 dark:to-white dark:text-neutral-950 rounded-lg border border-blue-500/40 hover:opacity-95 hover:shadow-md transition-all whitespace-nowrap shrink-0 inline-flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>Start Earning</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -461,7 +559,7 @@ export default function App() {
           Earnings
         </button>
         <button type="button" onClick={() => handleNavigate('pricing')} className="whitespace-nowrap shrink-0">
-          CPM Plans ($2 / $3)
+          $3.00 CPM Plan
         </button>
         <button type="button" onClick={() => handleNavigate('dashboard')} className="whitespace-nowrap shrink-0">
           Dashboard
@@ -540,18 +638,18 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => handleNavigate('home')}
-                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-black border border-blue-500/50 shadow-[0_0_26px_rgba(59,130,246,0.35)] shrink-0 overflow-hidden hover:scale-[1.03] transition-transform flex items-center justify-center"
+                  className="w-20 h-20 sm:w-24 sm:h-24 bg-transparent shrink-0 hover:scale-[1.03] transition-transform flex items-center justify-center"
                 >
                   <img
                     src={BRAND_LOGO_SRC}
                     alt="ShareDabba — Upload. Share. Earn."
-                    className="w-full h-full object-cover scale-[1.18]"
+                    className="w-full h-full object-contain bg-transparent"
                   />
                 </button>
                 <div className="space-y-2 max-w-xl">
                   <div className="text-xl sm:text-2xl font-extrabold tracking-tight">
                     <span className="text-neutral-950 dark:text-white">Share</span>
-                    <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-fuchsia-500 bg-clip-text text-transparent">
+                    <span className="bg-gradient-to-r from-sky-400 via-blue-500 to-blue-700 bg-clip-text text-transparent">
                       Dabba
                     </span>
                     <span className="text-xs font-mono font-normal text-neutral-500 dark:text-neutral-400 ml-2.5">
@@ -559,7 +657,7 @@ export default function App() {
                     </span>
                   </div>
                   <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                    High-speed cloud video & file hosting with self-adjusting dynamic CPM ($3.00 Max Ads / $2.00 Balanced) and instant payouts via Lightning India UPI and Global USDT (TRC-20 / ERC-20).
+                    High-speed cloud video & file hosting with our unified $3.00 CPM Creator Plan and instant payouts via Lightning India UPI and Global USDT (TRC-20 / ERC-20).
                   </p>
                 </div>
               </div>
@@ -568,7 +666,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => handleNavigate('register')}
-                  className="min-h-[42px] w-full sm:w-auto px-5 py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold hover:opacity-95 transition-opacity inline-flex items-center justify-center shadow-xs cursor-pointer"
+                  className="min-h-[42px] w-full sm:w-auto px-5 py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-sky-600 text-white text-xs font-bold hover:opacity-95 transition-opacity inline-flex items-center justify-center shadow-xs cursor-pointer"
                 >
                   Start Earning (Google Sign Up)
                 </button>
@@ -584,7 +682,7 @@ export default function App() {
                   onClick={() => handleNavigate('pricing')}
                   className="min-h-[42px] w-full sm:w-auto px-5 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors inline-flex items-center justify-center cursor-pointer"
                 >
-                  Compare CPM Plans
+                  $3.00 CPM Plan
                 </button>
               </div>
             </div>
@@ -616,7 +714,7 @@ export default function App() {
                 </li>
                 <li>
                   <button type="button" onClick={() => handleNavigate('pricing')} className="hover:underline">
-                    5. CPM Plans ($2.00 & $3.00)
+                    5. $3.00 CPM Plan
                   </button>
                 </li>
               </ul>
@@ -727,16 +825,16 @@ export default function App() {
 
           <div className="pt-8 border-t border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-4 text-xs text-neutral-500">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-black border border-blue-500/40 overflow-hidden shrink-0">
+              <div className="w-8 h-8 bg-transparent shrink-0 flex items-center justify-center">
                 <img
                   src={BRAND_LOGO_SRC}
                   alt="ShareDabba"
-                  className="w-full h-full object-cover object-[center_24%] scale-[1.52]"
+                  className="w-full h-full object-contain bg-transparent"
                 />
               </div>
               <div>
                 <span className="font-bold text-neutral-950 dark:text-white">Share</span>
-                <span className="font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-fuchsia-500 bg-clip-text text-transparent">
+                <span className="font-bold bg-gradient-to-r from-sky-400 via-blue-500 to-blue-700 bg-clip-text text-transparent">
                   Dabba
                 </span>{' '}
                 · Upload. Share. Earn. · © {new Date().getFullYear()} ShareDabba Inc.

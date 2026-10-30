@@ -130,7 +130,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Monetization Config Form State
   const [modeInput, setModeInput] = useState<'fixed_cpm' | 'revenue_share'>('fixed_cpm');
-  const [cpmInput, setCpmInput] = useState('2.00');
+  const [cpmInput, setCpmInput] = useState('3.00');
   const [revShareInput, setRevShareInput] = useState('65.00');
   const [minWithdrawInput, setMinWithdrawInput] = useState('5.00');
   const [inrRateInput, setInrRateInput] = useState('86.45');
@@ -138,12 +138,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [minWatchSecInput, setMinWatchSecInput] = useState('5');
   const [holdDaysInput, setHoldDaysInput] = useState('7');
   const [countryRates, setCountryRates] = useState<Record<string, number>>({
-    IN: 2.0,
+    IN: 3.0,
     US: 3.4,
     GB: 3.1,
-    DE: 2.8,
-    SG: 2.6,
-    AE: 2.4,
+    DE: 3.0,
+    SG: 3.0,
+    AE: 3.0,
   });
 
   // User Management & Direct Wallet Credit/Debit State
@@ -178,9 +178,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Custom Codes, Scripts, Branding & Dynamic Ad-Tier CPM Studio State
   const [codesForm, setCodesForm] = useState<PlatformCustomCodesConfig>({
     maxAdsCpmUsd: 3.0,
-    balancedAdsCpmUsd: 2.0,
-    halfAdsCpmUsd: 1.5,
-    vastPreRollTagUrl: 'https://ads.sharedabba.com/vast/v4/preroll?placement=max_or_balanced',
+    balancedAdsCpmUsd: 3.0,
+    halfAdsCpmUsd: 3.0,
+    vastPreRollTagUrl: 'https://ads.sharedabba.com/vast/v4/preroll?placement=official_3cpm',
     vastMidRollTagUrl: 'https://ads.sharedabba.com/vast/v4/midroll?interval=300',
     vastPostRollTagUrl: 'https://ads.sharedabba.com/vast/v4/postroll',
     customAdScriptCode:
@@ -207,7 +207,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     cdnCustomDomain: 'https://cdn.sharedabba.com',
     supportEmail: 'support@sharedabba.com',
     announcementBanner:
-      'Dynamic CPM Tiers Active: Max Ads ($3.00 eCPM) & Balanced ($2.00 eCPM) · Instant UPI & USDT Payouts',
+      'Official $3.00 CPM Plan Active · Instant India UPI & Global USDT Payouts',
     announcementBannerEnabled: true,
     customHeroHeadline: 'Your Content. Your Links. Your Earnings.',
     customHeroSubheadline: '',
@@ -467,7 +467,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-neutral-950 via-blue-950 to-indigo-950 dark:from-white dark:to-blue-100 text-white dark:text-neutral-950 flex items-center justify-center shrink-0 shadow-sm">
-                    <Lock className="w-5 h-5 text-amber-400 dark:text-blue-700" />
+                    <Lock className="w-5 h-5 text-sky-400 dark:text-blue-700" />
                   </div>
                   <div>
                     <span className="text-[11px] font-mono uppercase tracking-wider text-blue-600 dark:text-blue-400 font-bold block">
@@ -672,13 +672,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           upiFeePercent: Number(payload.upiFeePercent),
           usdtFeePercent: Number(payload.usdtFeePercent),
           maxAdsCpmUsd: Number(payload.maxAdsCpmUsd),
-          balancedAdsCpmUsd: Number(payload.balancedAdsCpmUsd),
+          balancedAdsCpmUsd: Number(payload.maxAdsCpmUsd),
         });
       } catch {
         // Handled when Firebase session is active
       }
       setActionBanner(
-        `Saved Platform Customization & Payout Rules — Balanced: $${Number(payload.balancedAdsCpmUsd).toFixed(2)} · Max Ads: $${Number(payload.maxAdsCpmUsd).toFixed(2)} · Live USDT/INR: ₹${Number(payload.usdtToInrRate).toFixed(2)} · Hero & Site Branding Updated.`
+        `Saved Platform Customization & Payout Rules — Official $3.00 CPM Plan: $${Number(payload.maxAdsCpmUsd).toFixed(2)} · Live USDT/INR: ₹${Number(payload.usdtToInrRate).toFixed(2)} · Hero & Site Branding Updated.`
       );
       await fetchAdminData();
       await onRefreshGlobal();
@@ -934,10 +934,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         return `Rejected payout ${log.entityId} ($${Number(meta.amountUsd || 0).toFixed(2)} USD reversed to wallet — ${meta.reason || 'Compliance review'})`;
       }
       if (a.includes('UPDATE_MONETIZATION_CONFIG') || a.includes('CONFIGURE_MONETIZATION_RULES')) {
-        return `Updated Monetization Engine (${meta.activeMode || 'fixed_cpm'}, Target eCPM: $${meta.targetCpmUsd ?? 2.0}, USD/INR: ₹${meta.usdToInrRate ?? 86.45})`;
+        return `Updated Monetization Engine (${meta.activeMode || 'fixed_cpm'}, Target eCPM: $${meta.targetCpmUsd ?? 3.0}, USD/INR: ₹${meta.usdToInrRate ?? 86.45})`;
       }
       if (a.includes('UPDATE_PAYOUT_AND_PLATFORM_CONFIGURATION')) {
-        return `Updated Platform & Payout Configuration (Balanced: $${meta.balancedAdsCpmUsd ?? 2.0}, Max Ads: $${meta.maxAdsCpmUsd ?? 3.0}, USDT/INR: ₹${meta.usdtToInrRate ?? 88.85})`;
+        return `Updated Platform & Payout Configuration (Official CPM Plan: $${meta.maxAdsCpmUsd ?? 3.0}, USDT/INR: ₹${meta.usdtToInrRate ?? 88.85})`;
       }
       if (a.includes('ADMIN_WALLET_CREDIT')) {
         return `Credited +$${Number(meta.deltaUsd || 0).toFixed(2)} USD bonus to ${meta.email || `User #${meta.userId}`} (New Balance: $${Number(meta.balanceAfterUsd || 0).toFixed(2)})`;
@@ -1204,9 +1204,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <p className="text-2xl font-bold font-mono tabular-nums mt-1 text-neutral-950 dark:text-white">
                     {totalViews.toLocaleString()} / {totalMonetizedViews.toLocaleString()}
                   </p>
-                  <p className="text-[11px] font-mono text-neutral-500 mt-1">
-                    Plans: ${Number(codesForm.balancedAdsCpmUsd).toFixed(2)} & $
-                    {Number(codesForm.maxAdsCpmUsd).toFixed(2)} eCPM
+                  <p className="text-[11px] font-mono text-sky-600 dark:text-sky-400 mt-1">
+                    Official Plan: ${Number(codesForm.maxAdsCpmUsd || 3.0).toFixed(2)} eCPM
                   </p>
                 </div>
                 <div className="p-4 rounded-xl color-graded-panel">
@@ -1553,7 +1552,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                                   u.kycVerified
                                     ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                                    : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'
+                                    : 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30'
                                 }`}
                               >
                                 {u.kycVerified ? 'KYC VERIFIED' : 'VERIFY KYC'}
@@ -1657,7 +1656,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                   handleModerate('file', f.id, 'boost_views', 'Admin +1k views boost')
                                 }
                                 className="px-2 py-1 rounded bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 font-mono text-[11px] font-semibold"
-                                title="Boost +1,000 Views & +$2.00 Earnings"
+                                title="Boost +1,000 Views & +$3.00 Earnings"
                               >
                                 +1k Views
                               </button>
@@ -2005,7 +2004,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <td className="py-3 px-4 font-mono">
                             {w.status === 'under_review' || w.status === 'pending' || w.status === 'processing' ? (
                               <div className="space-y-1">
-                                <span className="block text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                <span className="block text-[10px] font-bold text-sky-600 dark:text-sky-400">
                                   {w.status.toUpperCase()}
                                 </span>
                                 <input
@@ -2064,7 +2063,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                   onClick={() =>
                                     handleWithdrawalDecision(w.id, 'mark_failed')
                                   }
-                                  className="px-2 py-1 rounded border border-amber-500/40 text-amber-700 dark:text-amber-300 font-semibold text-[11px]"
+                                  className="px-2 py-1 rounded border border-sky-500/40 text-sky-700 dark:text-sky-300 font-semibold text-[11px]"
                                 >
                                   Mark Failed
                                 </button>
@@ -2129,7 +2128,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="flex items-start justify-between gap-3 border-b border-neutral-200 dark:border-neutral-800 pb-4">
                       <div className="flex items-center gap-3">
                         <span className="w-10 h-10 rounded-xl bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 inline-flex items-center justify-center shrink-0">
-                          <Zap className="w-5 h-5 text-amber-400 dark:text-amber-600 icon-anim-bolt" />
+                          <Zap className="w-5 h-5 text-sky-400 dark:text-sky-600 icon-anim-bolt" />
                         </span>
                         <div>
                           <h3 className="text-sm font-bold text-neutral-950 dark:text-white">
@@ -2538,7 +2537,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       />
                     </label>
                     <label className="p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 flex items-center justify-between gap-2 text-xs cursor-pointer">
-                      <span className="font-semibold text-amber-600 dark:text-amber-400">
+                      <span className="font-semibold text-sky-600 dark:text-sky-400">
                         Maintenance Alert Banner
                       </span>
                       <input
@@ -2547,43 +2546,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         onChange={(e) =>
                           setCodesForm({ ...codesForm, maintenanceMode: e.target.checked })
                         }
-                        className="accent-amber-600 w-4 h-4"
+                        className="accent-blue-600 w-4 h-4"
                       />
                     </label>
                   </div>
                 </div>
 
-                {/* 2. Dynamic Ad-Intensity CPM Rates */}
+                {/* 2. Official $3.00 Creator eCPM Rate */}
                 <div className="space-y-3 pt-4 border-t border-neutral-200 dark:border-neutral-800">
                   <h3 className="text-xs font-mono uppercase text-blue-700 dark:text-blue-400 font-semibold">
-                    2. 2-Plan Creator eCPM Rates ($2.00 Balanced & $3.00 Max Ads)
+                    2. Official $3.00 CPM Plan Rate ($ USD / 1,000 Views)
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium mb-1">
-                        Balanced Plan Target eCPM ($ USD)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.10"
-                        value={codesForm.balancedAdsCpmUsd}
-                        onChange={(e) =>
-                          setCodesForm({ ...codesForm, balancedAdsCpmUsd: Number(e.target.value) })
-                        }
-                        className="w-full px-3 py-2 text-xs font-mono rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium mb-1">
-                        Max Ads Plan Target eCPM ($ USD)
+                        Official Creator Plan Target eCPM ($ USD)
                       </label>
                       <input
                         type="number"
                         step="0.10"
                         value={codesForm.maxAdsCpmUsd}
-                        onChange={(e) =>
-                          setCodesForm({ ...codesForm, maxAdsCpmUsd: Number(e.target.value) })
-                        }
+                        onChange={(e) => {
+                          const nextVal = Number(e.target.value);
+                          setCodesForm({
+                            ...codesForm,
+                            maxAdsCpmUsd: nextVal,
+                            balancedAdsCpmUsd: nextVal,
+                          });
+                        }}
                         className="w-full px-3 py-2 text-xs font-mono rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950"
                       />
                     </div>
@@ -2793,7 +2783,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
                 <div className="p-4 rounded-xl color-graded-panel">
                   <p className="text-xs text-neutral-500">User Bans, Roles & Wallet Actions</p>
-                  <p className="text-2xl font-bold font-mono tabular-nums mt-1 text-amber-600 dark:text-amber-400">
+                  <p className="text-2xl font-bold font-mono tabular-nums mt-1 text-sky-600 dark:text-sky-400">
                     {
                       adminData.auditLogs.filter(
                         (l) => classifyActivityCategory(l.action, l.entityType) === 'users'
@@ -2923,11 +2913,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           config:
                             'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30',
                           users:
-                            'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+                            'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
                           payouts:
                             'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
                           content:
-                            'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
+                            'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30',
                           security:
                             'bg-neutral-500/15 text-neutral-700 dark:text-neutral-300 border-neutral-500/30',
                         };
