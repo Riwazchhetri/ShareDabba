@@ -58,7 +58,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   section,
   onChangeSection,
   authHeaders,
-  sessionAccountEmail,
   onSwitchToAdminAccount,
   onRefreshGlobal,
   onNavigate,
@@ -66,7 +65,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onToggleDarkMode,
 }) => {
   // ==========================================================================
-  // STRICT ADMIN VAULT AUTHENTICATION STATE (ID: Riwaz | PASS: 7001473587 | EMAIL: rudraxsikkim@gmail.com)
+  // Strict Admin Vault authentication state
   // ==========================================================================
   const [vaultToken, setVaultToken] = useState<string | null>(null);
   const [vaultAdminId, setVaultAdminId] = useState<string>('');
@@ -180,6 +179,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     maxAdsCpmUsd: 3.0,
     balancedAdsCpmUsd: 3.0,
     halfAdsCpmUsd: 3.0,
+    approvedAdProvider: 'GOOGLE_ADMOB_APPROVED',
+    bannerAdUnitId: 'ca-app-pub-4643856509495992/6520168046',
+    interstitialAdUnitId: 'ca-app-pub-4643856509495992/1559485409',
+    rewardedInterstitialAdUnitId: 'ca-app-pub-4643856509495992/5550489272',
+    rewardedAdUnitId: 'ca-app-pub-4643856509495992/5929588213',
+    enableBannerPlacements: true,
+    enableInterstitialPlacements: true,
+    enableRewardedPlacements: true,
+    enableRewardedInterstitialPlacements: true,
+    adFrequencyEveryNVideos: 5,
+    adCooldownSeconds: 180,
+    maxAdsPerSession: 4,
+    adTestModeEnabled: false,
     vastPreRollTagUrl: 'https://ads.sharedabba.com/vast/v4/preroll?placement=official_3cpm',
     vastMidRollTagUrl: 'https://ads.sharedabba.com/vast/v4/midroll?interval=300',
     vastPostRollTagUrl: 'https://ads.sharedabba.com/vast/v4/postroll',
@@ -304,45 +316,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     },
     [vaultToken, getVaultHeaders, selectedUserIdForWallet]
   );
-
-  const handleEmailBoundUnlock = useCallback(
-    async (emailToVerify: string) => {
-      if (authSubmitting) return;
-      setAuthError(null);
-      setAuthSubmitting(true);
-      try {
-        const res = await fetch('/api/admin/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: emailToVerify.trim().toLowerCase() }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setAuthError(data.error || 'Email is not bound to Super Admin privileges.');
-          return;
-        }
-        setManuallyLocked(false);
-        setVaultToken(data.token);
-        setVaultAdminId(data.adminId || 'Riwaz');
-        setVaultExpiresAt(data.expiresAt || null);
-        onSwitchToAdminAccount();
-        await fetchAdminData(data.token);
-      } catch (err: any) {
-        setAuthError(err.message || 'Failed to verify Super Admin email binding.');
-      } finally {
-        setAuthSubmitting(false);
-      }
-    },
-    [authSubmitting, fetchAdminData, onSwitchToAdminAccount]
-  );
-
-  // Automatically unlock Admin Portal when logged in as rudraxsikkim@gmail.com
-  useEffect(() => {
-    const cleanEmail = (sessionAccountEmail || '').trim().toLowerCase();
-    if (cleanEmail === 'rudraxsikkim@gmail.com' && !vaultToken && !manuallyLocked && !authSubmitting) {
-      handleEmailBoundUnlock('rudraxsikkim@gmail.com');
-    }
-  }, [sessionAccountEmail, vaultToken, manuallyLocked, authSubmitting, handleEmailBoundUnlock]);
 
   const handleVaultLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2581,10 +2554,96 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 </div>
 
-                {/* 3. VAST Tag URLs & Custom Ad Network Script Codes */}
+                {/* 3. Native Android AdMob Control Center */}
+                <div className="space-y-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-xs font-mono uppercase text-blue-700 dark:text-blue-400 font-semibold">
+                        3. Android App — Google AdMob Live Placements
+                      </h3>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
+                        These settings are published to the Android app through the secure read-only config API. Debug APKs always use Google test ad units.
+                      </p>
+                    </div>
+                    <span className="text-[10px] rounded-full px-3 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-semibold">
+                      Native SDK integrated
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Approved Android Ad Provider</label>
+                      <select
+                        value={codesForm.approvedAdProvider || 'NONE'}
+                        onChange={(e) => setCodesForm({ ...codesForm, approvedAdProvider: e.target.value as 'NONE' | 'GOOGLE_ADMOB_APPROVED' | 'WEBSITE_VAST' })}
+                        className="w-full px-3 py-2 text-xs rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950"
+                      >
+                        <option value="NONE">Ads disabled</option>
+                        <option value="GOOGLE_ADMOB_APPROVED">Google AdMob (production)</option>
+                        <option value="WEBSITE_VAST">Website VAST provider</option>
+                      </select>
+                    </div>
+                    <div className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-3 text-xs text-amber-800 dark:text-amber-200">
+                      Production requests require the app and ad units to be approved/active in your AdMob account. UMP consent is checked in the app before requests.
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Banner Ad Unit ID (3 home + 2 player slots)</label>
+                      <input value={codesForm.bannerAdUnitId || ''} onChange={(e) => setCodesForm({ ...codesForm, bannerAdUnitId: e.target.value.trim() })} className="w-full px-3 py-2 text-xs font-mono rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Interstitial Ad Unit ID</label>
+                      <input value={codesForm.interstitialAdUnitId || ''} onChange={(e) => setCodesForm({ ...codesForm, interstitialAdUnitId: e.target.value.trim() })} className="w-full px-3 py-2 text-xs font-mono rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Rewarded Interstitial Ad Unit ID</label>
+                      <input value={codesForm.rewardedInterstitialAdUnitId || ''} onChange={(e) => setCodesForm({ ...codesForm, rewardedInterstitialAdUnitId: e.target.value.trim() })} className="w-full px-3 py-2 text-xs font-mono rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Rewarded Ad Unit ID</label>
+                      <input value={codesForm.rewardedAdUnitId || ''} onChange={(e) => setCodesForm({ ...codesForm, rewardedAdUnitId: e.target.value.trim() })} className="w-full px-3 py-2 text-xs font-mono rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {([
+                      ['enableBannerPlacements', 'Enable all 5 banner placements'],
+                      ['enableInterstitialPlacements', 'Enable interstitial placements'],
+                      ['enableRewardedPlacements', 'Enable opt-in rewarded ads'],
+      ['enableRewardedInterstitialPlacements', 'Enable rewarded interstitial ads'],
+                    ] as const).map(([key, label]) => (
+                      <label key={key} className="p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 flex items-center justify-between gap-2 text-xs cursor-pointer">
+                        <span className="font-semibold">{label}</span>
+                        <input type="checkbox" checked={Boolean(codesForm[key])} onChange={(e) => setCodesForm({ ...codesForm, [key]: e.target.checked })} className="accent-blue-600 w-4 h-4" />
+                      </label>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Videos between interstitials</label>
+                      <input type="number" min="1" max="50" value={codesForm.adFrequencyEveryNVideos ?? 5} onChange={(e) => setCodesForm({ ...codesForm, adFrequencyEveryNVideos: Math.max(1, Math.min(50, Number(e.target.value) || 5)) })} className="w-full px-3 py-2 text-xs font-mono rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Fullscreen ad cooldown (seconds)</label>
+                      <input type="number" min="0" max="3600" value={codesForm.adCooldownSeconds ?? 180} onChange={(e) => setCodesForm({ ...codesForm, adCooldownSeconds: Math.max(0, Math.min(3600, Number(e.target.value) || 0)) })} className="w-full px-3 py-2 text-xs font-mono rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Maximum interstitials per session</label>
+                      <input type="number" min="0" max="20" value={codesForm.maxAdsPerSession ?? 4} onChange={(e) => setCodesForm({ ...codesForm, maxAdsPerSession: Math.max(0, Math.min(20, Number(e.target.value) || 0)) })} className="w-full px-3 py-2 text-xs font-mono rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950" />
+                    </div>
+                  </div>
+                  <label className="p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 flex items-center justify-between gap-3 text-xs cursor-pointer">
+                    <span>
+                      <span className="font-semibold block">Force test ads in production build</span>
+                      <span className="text-neutral-500">Leave enabled while validating placements; disable only after live ad serving is approved.</span>
+                    </span>
+                    <input type="checkbox" checked={Boolean(codesForm.adTestModeEnabled)} onChange={(e) => setCodesForm({ ...codesForm, adTestModeEnabled: e.target.checked })} className="accent-blue-600 w-4 h-4" />
+                  </label>
+                </div>
+
+                {/* 4. VAST Tag URLs & Custom Ad Network Script Codes */}
                 <div className="space-y-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
                   <h3 className="text-xs font-mono uppercase text-blue-700 dark:text-blue-400 font-semibold">
-                    3. VAST 4.2 Video Ad Tags & Custom Ad / Analytics Code Injection
+                    4. VAST 4.2 Video Ad Tags & Custom Ad / Analytics Code Injection
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
@@ -2666,7 +2725,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 </div>
 
-                {/* 4. Payment Gateway, S3 Object Storage & Site Endpoints */}
+                {/* 5. Payment Gateway, S3 Object Storage & Site Endpoints */}
                 <div className="space-y-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
                   <h3 className="text-xs font-mono uppercase text-blue-700 dark:text-blue-400 font-semibold">
                     4. UPI Payout Gateway, Object Storage (S3/R2) & CDN Configuration
