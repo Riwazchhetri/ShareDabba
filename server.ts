@@ -48,11 +48,10 @@ import {
 
 dotenv.config();
 
-// ============================================================================
-// STRICT ADMIN VAULT SECURITY PROTOCOL (ID: Riwaz | PASS: 7001473587)
-// ============================================================================
-const ADMIN_VAULT_ID = 'Riwaz';
-const ADMIN_VAULT_PASS = '7001473587';
+// Admin Vault credentials are configured only through private deployment environment variables.
+const ADMIN_VAULT_ID = (process.env.ADMIN_VAULT_ID || '').trim();
+const ADMIN_VAULT_PASS = process.env.ADMIN_VAULT_PASS || '';
+const SUPER_ADMIN_BOUND_EMAIL = (process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
 const VAULT_SECRET = crypto.randomBytes(32).toString('hex');
 const VAULT_SESSION_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 const MAX_FAILED_ATTEMPTS = 5;
@@ -130,7 +129,7 @@ function createRateLimiter(windowMs: number, maxRequests: number) {
 function requireSuperAdmin(req: AuthRequest, res: express.Response, next: express.NextFunction) {
   const email = (req.user?.email || '').trim().toLowerCase();
   const role = req.user?.role || '';
-  if (role !== 'super_admin' && email !== 'rudraxsikkim@gmail.com') {
+  if (role !== 'super_admin' && (!SUPER_ADMIN_BOUND_EMAIL || email !== SUPER_ADMIN_BOUND_EMAIL)) {
     res.status(403).json({
       error: 'Forbidden: Administrator permissions required.',
     });
@@ -321,71 +320,17 @@ async function startServer() {
       return;
     }
 
-    const inputEmail = String(req.body?.email || '').trim().toLowerCase();
     const inputId = String(req.body?.adminId || '').trim();
     const inputPass = String(req.body?.password || '').trim();
 
-    // Check if login is via bound Super Admin email (rudraxsikkim@gmail.com)
-    if (inputEmail && !inputId && !inputPass) {
-      if (!timingSafeStringMatch(inputEmail, SUPER_ADMIN_BOUND_EMAIL)) {
-        await adminRecordSecurityAudit({
-          actorUid: inputEmail,
-          actorRole: 'CREATOR',
-          action: 'ADMIN_EMAIL_BINDING_REJECTED',
-          ip,
-          details: {
-            attemptedEmail: inputEmail,
-            summary: `Rejected non-admin email (${inputEmail}) from Super Admin Portal; routed as normal creator`,
-          },
-        });
-        res.status(403).json({
-          error: `Access Denied: Only ${SUPER_ADMIN_BOUND_EMAIL} is bound to Super Admin. ${inputEmail} is a Normal Creator account.`,
-        });
-        return;
-      }
-
-      failedLoginTracker.delete(ip);
-      const token = createSignedVaultToken(ADMIN_VAULT_ID);
-      const session: VaultSession = {
-        token,
-        adminId: ADMIN_VAULT_ID,
-        issuedAt: now,
-        expiresAt: now + VAULT_SESSION_TTL_MS,
-        ip,
-      };
-      activeAdminVaultSessions.set(token, session);
-
-      await adminRecordSecurityAudit({
-        actorUid: `${ADMIN_VAULT_ID} (${SUPER_ADMIN_BOUND_EMAIL})`,
-        actorRole: 'SUPER_ADMIN',
-        action: 'ADMIN_EMAIL_BOUND_LOGIN_SUCCESS',
-        entityType: 'admin_vault',
-        entityId: SUPER_ADMIN_BOUND_EMAIL,
-        ip,
-        details: {
-          summary: `Super Admin ${SUPER_ADMIN_BOUND_EMAIL} (${ADMIN_VAULT_ID}) unlocked the Admin Portal via Exclusive Email Binding`,
-          email: SUPER_ADMIN_BOUND_EMAIL,
-          adminId: ADMIN_VAULT_ID,
-          protocol: 'FIREBASE-EMAIL-BOUND-HMAC-SHA256',
-          expiresAt: session.expiresAt,
-        },
-      });
-
-      res.json({
-        authenticated: true,
-        token,
-        adminId: ADMIN_VAULT_ID,
-        email: SUPER_ADMIN_BOUND_EMAIL,
-        role: 'SUPER_ADMIN',
-        expiresAt: session.expiresAt,
-        protocol: 'Exclusive Email Binding (rudraxsikkim@gmail.com) + SHA-256 Vault',
+    if (!ADMIN_VAULT_ID || !ADMIN_VAULT_PASS) {
+      res.status(503).json({
+        error: 'Admin Vault is not configured. Set ADMIN_VAULT_ID and ADMIN_VAULT_PASS in the private server environment.',
       });
       return;
     }
 
-    const idMatch =
-      timingSafeStringMatch(inputId, ADMIN_VAULT_ID) ||
-      timingSafeStringMatch(inputId.toLowerCase(), SUPER_ADMIN_BOUND_EMAIL);
+    const idMatch = timingSafeStringMatch(inputId, ADMIN_VAULT_ID);
     const passMatch = timingSafeStringMatch(inputPass, ADMIN_VAULT_PASS);
 
     if (!idMatch || !passMatch) {
