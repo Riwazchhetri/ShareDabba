@@ -188,6 +188,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     enableBannerPlacements: true,
     enableInterstitialPlacements: true,
     enableRewardedPlacements: true,
+    enableRewardedInterstitialPlacements: true,
     adFrequencyEveryNVideos: 5,
     adCooldownSeconds: 180,
     maxAdsPerSession: 4,
@@ -2648,6 +2649,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       ['enableBannerPlacements', 'Enable all 5 banner placements'],
                       ['enableInterstitialPlacements', 'Enable interstitial placements'],
                       ['enableRewardedPlacements', 'Enable opt-in rewarded ads'],
+      ['enableRewardedInterstitialPlacements', 'Enable rewarded interstitial ads'],
                     ] as const).map(([key, label]) => (
                       <label key={key} className="p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 flex items-center justify-between gap-2 text-xs cursor-pointer">
                         <span className="font-semibold">{label}</span>
