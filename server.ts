@@ -295,9 +295,8 @@ async function startServer() {
   });
 
   // ==========================================================================
-  // ADMIN VAULT AUTHENTICATION ENDPOINTS (ID: Riwaz | PASS: 7001473587 | EMAIL: rudraxsikkim@gmail.com)
+  // ADMIN VAULT AUTHENTICATION ENDPOINTS
   // ==========================================================================
-  const SUPER_ADMIN_BOUND_EMAIL = 'rudraxsikkim@gmail.com';
 
   app.post('/api/admin/auth/login', async (req, res) => {
     const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
