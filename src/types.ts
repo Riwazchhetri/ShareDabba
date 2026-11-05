@@ -174,6 +174,7 @@ export interface PlatformCustomCodesConfig {
   enableBannerPlacements?: boolean;
   enableInterstitialPlacements?: boolean;
   enableRewardedPlacements?: boolean;
+  enableRewardedInterstitialPlacements?: boolean;
   adFrequencyEveryNVideos?: number;
   adCooldownSeconds?: number;
   maxAdsPerSession?: number;
