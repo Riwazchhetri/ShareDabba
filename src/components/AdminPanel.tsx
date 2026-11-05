@@ -2636,7 +2636,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <input value={codesForm.interstitialAdUnitId || ''} onChange={(e) => setCodesForm({ ...codesForm, interstitialAdUnitId: e.target.value.trim() })} className="w-full px-3 py-2 text-xs font-mono rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium mb-1">Rewarded Interstitial Ad Unit ID (reserved)</label>
+                      <label className="block text-xs font-medium mb-1">Rewarded Interstitial Ad Unit ID</label>
                       <input value={codesForm.rewardedInterstitialAdUnitId || ''} onChange={(e) => setCodesForm({ ...codesForm, rewardedInterstitialAdUnitId: e.target.value.trim() })} className="w-full px-3 py-2 text-xs font-mono rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950" />
                     </div>
                     <div>
