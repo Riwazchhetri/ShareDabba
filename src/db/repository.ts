@@ -2916,71 +2916,111 @@ export async function markNotificationRead(
 
 export async function getAndroidRemoteConfig() {
   await ensurePlatformSeeded();
-  const [rulesList, customCodes] = await Promise.all([
+  const [rulesRows, codes] = await Promise.all([
     db.select().from(monetizationRules),
     getPlatformCustomCodes(),
   ]);
-  const rules = rulesList[0];
+  const rules = rulesRows[0];
+  const announcement = codes.announcementBannerEnabled
+    ? String(codes.announcementBanner || '')
+    : '';
 
-  const packageName = process.env.ANDROID_PACKAGE_NAME || 'com.sharedabba.app';
-  const rawFingerprints =
-    process.env.ANDROID_SHA256_CERT_FINGERPRINTS ||
-    'FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C';
-  const sha256Fingerprints = rawFingerprints
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
+  // Native ad SDKs are not bundled in the current APK: keep all native placements off.
   return {
-    platform: {
-      siteTitle: customCodes.siteTitle || 'ShareDabba',
-      supportEmail: customCodes.supportEmail || 'support@sharedabba.in',
-      telegramChannelUrl: customCodes.telegramChannelUrl || 'https://t.me/sharedabba',
-      maintenanceMode: Boolean(customCodes.maintenanceMode ?? false),
-      registrationEnabled: Boolean(customCodes.registrationEnabled ?? true),
-      announcementBanner: customCodes.announcementBannerEnabled ? customCodes.announcementBanner : null,
-      maxUploadSizeMb: Number(customCodes.maxUploadSizeMb ?? 2048),
+    configVersion: 1,
+    publishedAtIso: new Date().toISOString(),
+    sourceLabel: 'SHAREDABBA_ADMIN_PANEL',
+    branding: {
+      appDisplayName: String(codes.siteTitle || 'ShareDabba Player'),
+      remoteLogoUrl: String(codes.remoteLogoUrl || 'https://sharedabba.com/assets/brand/logo.png'),
+      remoteHeroBannerUrl: String(codes.remoteHeroBannerUrl || 'https://sharedabba.com/assets/brand/hero_banner.jpg'),
+      primaryCyanHex: String(codes.primaryCyanHex || '#00F0FF'),
+      accentPurpleHex: String(codes.accentPurpleHex || '#9D4EDD'),
+      backgroundBlackHex: String(codes.backgroundBlackHex || '#050508'),
+      globalAnnouncementBanner: announcement,
+      supportEmail: String(codes.supportEmail || 'support@sharedabba.com'),
+      supportPortalUrl: 'https://sharedabba.com/support',
+      termsOfServiceUrl: 'https://sharedabba.com/terms',
+      privacyPolicyUrl: 'https://sharedabba.com/privacy',
     },
-    monetization: {
-      activePlanName: 'Official $3.00 CPM Plan',
-      activeMode: rules?.activeMode || 'fixed_cpm',
-      targetCpmUsd: Number(customCodes.maxAdsCpmUsd ?? rules?.targetCpmUsd ?? 3.0),
-      minWatchSeconds: Number(rules?.minWatchSeconds ?? 5),
-      usdToInrRate: Number(rules?.usdToInrRate ?? 84.2),
-      usdtToInrRate: Number(customCodes.usdtToInrRate ?? 86.5),
-      referralCommissionPercent: Number(rules?.referralCommissionPercent ?? 10.0),
-      payouts: {
-        upiEnabled: Boolean(customCodes.upiPayoutEnabled ?? true),
-        upiMinWithdrawalUsd: Number(customCodes.upiMinWithdrawalUsd ?? rules?.minWithdrawalUsd ?? 5.0),
-        upiFeePercent: Number(customCodes.upiFeePercent ?? 0),
-        usdtEnabled: Boolean(customCodes.usdtPayoutEnabled ?? true),
-        usdtMinWithdrawalUsd: Number(customCodes.usdtMinWithdrawalUsd ?? 20.0),
-        usdtFeePercent: Number(customCodes.usdtFeePercent ?? 1.5),
-      },
+    homeScreen: {
+      homeLayoutStyle: 'STANDARD_SECTIONS',
+      showHeroBanner: true,
+      showCategoriesBar: true,
+      showFeaturedVideosSection: true,
+      showRecentlyUploadedSection: true,
+      showPopularVideosSection: true,
+      featuredVideoIdsOverride: [],
+      enabledCategoryIds: ['live', 'tech', 'creator', 'gaming', 'education'],
+      enableSearchTab: true,
+      enableUploadsTab: true,
+    },
+    videoPlayer: {
+      defaultQualityId: 'auto',
+      availablePlaybackSpeeds: [0.5, 0.75, 1, 1.25, 1.5, 2],
+      autoplayEnabled: true,
+      showPlayerControls: true,
+      allowFullscreen: true,
+      allowPictureInPicture: true,
+      showRelatedVideos: true,
+      nextVideoAutoAdvance: false,
+      playerAppearanceStyle: 'CYAN_PURPLE_NEON',
     },
     advertising: {
-      vastPreRollTagUrl: customCodes.vastPreRollTagUrl,
-      vastMidRollTagUrl: customCodes.vastMidRollTagUrl,
-      rewardedAdEnabled: true,
+      approvedAdProvider: 'NONE',
+      bannerAdUnitId: '',
+      interstitialAdUnitId: '',
+      rewardedAdUnitId: '',
+      enableBannerPlacements: false,
+      enableInterstitialPlacements: false,
+      enableRewardedPlacements: false,
+      adFrequencyEveryNVideos: 5,
+      adCooldownSeconds: 180,
+      maxAdsPerSession: 4,
+      adTestModeEnabled: true,
+      adFallbackStrategy: 'NO_AD_CONTINUE_CONTENT',
+    },
+    appManagement: {
+      maintenanceModeEnabled: Boolean(codes.maintenanceMode),
+      maintenanceMessage: 'ShareDabba is undergoing scheduled maintenance. Please check back shortly.',
+      updateAnnouncementText: '',
+      minSupportedVersionCode: 1,
+      recommendedVersionCode: 1,
+      emergencySupportContact: 'https://sharedabba.com/status',
+      enableAiSearch: true,
+      enableCloudBookmarks: true,
+      enableCreatorDashboard: true,
     },
     androidAppLinks: {
-      packageName,
-      sha256CertFingerprints: sha256Fingerprints,
+      packageName: process.env.ANDROID_PACKAGE_NAME || 'com.sharedabba.app',
+      sha256CertFingerprints: String(process.env.ANDROID_SHA256_CERT_FINGERPRINTS || '')
+        .split(',').map((value) => value.trim()).filter(Boolean),
       canonicalSharePathPrefix: '/v/',
       legacyQueryParam: 'v',
       assetLinksUrl: '/.well-known/assetlinks.json',
     },
+    monetization: {
+      activePlanName: 'Official CPM Plan',
+      activeMode: rules?.activeMode || 'fixed_cpm',
+      targetCpmUsd: Number(codes.maxAdsCpmUsd ?? rules?.targetCpmUsd ?? 3),
+      minWatchSeconds: Number(rules?.minWatchSeconds ?? 5),
+      usdToInrRate: Number(rules?.usdToInrRate ?? 84.2),
+      usdtToInrRate: Number(codes.usdtToInrRate ?? 86.5),
+      referralCommissionPercent: Number(rules?.referralCommissionPercent ?? 10),
+      payouts: {
+        upiEnabled: Boolean(codes.upiPayoutEnabled),
+        upiMinWithdrawalUsd: Number(codes.upiMinWithdrawalUsd ?? 5),
+        upiFeePercent: Number(codes.upiFeePercent ?? 0),
+        usdtEnabled: Boolean(codes.usdtPayoutEnabled),
+        usdtMinWithdrawalUsd: Number(codes.usdtMinWithdrawalUsd ?? 20),
+        usdtFeePercent: Number(codes.usdtFeePercent ?? 1.5),
+      },
+    },
     externalProvidersStatus: {
-      s3ObjectStorageConfigured: Boolean(
-        process.env.S3_ACCESS_KEY_ID && process.env.S3_ACCESS_KEY_ID !== 'YOUR_S3_ACCESS_KEY_ID'
-      ),
-      razorpayxUpiGatewayConfigured: Boolean(
-        process.env.RAZORPAYX_KEY_ID && process.env.RAZORPAYX_KEY_ID !== 'YOUR_RAZORPAYX_KEY_ID'
-      ),
+      s3ObjectStorageConfigured: Boolean(process.env.S3_ACCESS_KEY_ID && process.env.S3_ACCESS_KEY_ID !== 'YOUR_S3_ACCESS_KEY_ID'),
+      razorpayxUpiGatewayConfigured: Boolean(process.env.RAZORPAYX_KEY_ID && process.env.RAZORPAYX_KEY_ID !== 'YOUR_RAZORPAYX_KEY_ID'),
       firebaseAuthConfigured: true,
     },
     serverTimestamp: new Date().toISOString(),
   };
 }
-
-
