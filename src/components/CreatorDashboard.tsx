@@ -690,22 +690,22 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Sidebar Navigation (240px width) */}
-        <aside className="w-full lg:w-60 shrink-0 space-y-6">
-          <div className="p-4 rounded-xl color-graded-panel space-y-1">
-            <p className="text-[11px] font-mono text-blue-600 dark:text-blue-400 font-semibold">
-              CREATOR WORKSPACE
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+        {/* Creator workspace navigation */}
+        <aside className="w-full lg:w-64 shrink-0 lg:sticky lg:top-24 lg:self-start space-y-4">
+          <div className="p-4 rounded-2xl border border-violet-100 dark:border-violet-900/60 bg-white dark:bg-neutral-900 shadow-sm space-y-1">
+            <p className="text-[10px] tracking-[0.16em] uppercase text-violet-600 dark:text-violet-400 font-bold">
+              Creator workspace
             </p>
             <p className="text-sm font-bold text-neutral-950 dark:text-white truncate">
               {user.displayName}
             </p>
-            <p className="text-xs font-mono text-neutral-500 truncate">
-              @{user.username} · VERIFIED CREATOR
+            <p className="text-xs text-neutral-500 truncate">
+              @{user.username}
             </p>
           </div>
 
-          <nav aria-label="Creator Dashboard Navigation" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-1">
+          <nav aria-label="Creator Dashboard Navigation" className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 -mx-1 px-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = section === item.id;
@@ -714,14 +714,15 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                   key={item.id}
                   type="button"
                   onClick={() => onChangeSection(item.id)}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                  aria-current={active ? 'page' : undefined}
+                  className={`flex shrink-0 lg:w-full items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap ${
                     active
-                      ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-semibold'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-900 hover:text-neutral-950 dark:hover:text-white'
+                      ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/20'
+                      : 'border border-transparent text-neutral-600 dark:text-neutral-400 hover:bg-violet-50 hover:text-violet-700 dark:hover:bg-violet-950/40 dark:hover:text-violet-300'
                   }`}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{item.label}</span>
+                  <span>{item.label}</span>
                 </button>
               );
             })}
