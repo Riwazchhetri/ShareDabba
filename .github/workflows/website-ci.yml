@@ -24,4 +24,5 @@ jobs:
       - name: TypeScript check
         run: bun run lint
       - name: Build website
+        if: always()
         run: bun run build
