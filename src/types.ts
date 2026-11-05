@@ -170,6 +170,7 @@ export interface PlatformCustomCodesConfig {
   bannerAdUnitId?: string;
   interstitialAdUnitId?: string;
   rewardedAdUnitId?: string;
+  rewardedInterstitialAdUnitId?: string;
   enableBannerPlacements?: boolean;
   enableInterstitialPlacements?: boolean;
   enableRewardedPlacements?: boolean;
