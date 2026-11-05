@@ -58,7 +58,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   section,
   onChangeSection,
   authHeaders,
-  sessionAccountEmail,
   onSwitchToAdminAccount,
   onRefreshGlobal,
   onNavigate,
@@ -66,7 +65,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onToggleDarkMode,
 }) => {
   // ==========================================================================
-  // STRICT ADMIN VAULT AUTHENTICATION STATE (ID: Riwaz | PASS: 7001473587 | EMAIL: rudraxsikkim@gmail.com)
+  // Strict Admin Vault authentication state
   // ==========================================================================
   const [vaultToken, setVaultToken] = useState<string | null>(null);
   const [vaultAdminId, setVaultAdminId] = useState<string>('');
@@ -317,45 +316,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     },
     [vaultToken, getVaultHeaders, selectedUserIdForWallet]
   );
-
-  const handleEmailBoundUnlock = useCallback(
-    async (emailToVerify: string) => {
-      if (authSubmitting) return;
-      setAuthError(null);
-      setAuthSubmitting(true);
-      try {
-        const res = await fetch('/api/admin/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: emailToVerify.trim().toLowerCase() }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setAuthError(data.error || 'Email is not bound to Super Admin privileges.');
-          return;
-        }
-        setManuallyLocked(false);
-        setVaultToken(data.token);
-        setVaultAdminId(data.adminId || 'Riwaz');
-        setVaultExpiresAt(data.expiresAt || null);
-        onSwitchToAdminAccount();
-        await fetchAdminData(data.token);
-      } catch (err: any) {
-        setAuthError(err.message || 'Failed to verify Super Admin email binding.');
-      } finally {
-        setAuthSubmitting(false);
-      }
-    },
-    [authSubmitting, fetchAdminData, onSwitchToAdminAccount]
-  );
-
-  // Automatically unlock Admin Portal when logged in as rudraxsikkim@gmail.com
-  useEffect(() => {
-    const cleanEmail = (sessionAccountEmail || '').trim().toLowerCase();
-    if (cleanEmail === 'rudraxsikkim@gmail.com' && !vaultToken && !manuallyLocked && !authSubmitting) {
-      handleEmailBoundUnlock('rudraxsikkim@gmail.com');
-    }
-  }, [sessionAccountEmail, vaultToken, manuallyLocked, authSubmitting, handleEmailBoundUnlock]);
 
   const handleVaultLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
