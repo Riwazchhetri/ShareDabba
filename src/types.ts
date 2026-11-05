@@ -166,6 +166,17 @@ export interface PlatformCustomCodesConfig {
   maxAdsCpmUsd: number;
   balancedAdsCpmUsd: number;
   halfAdsCpmUsd: number;
+  approvedAdProvider?: 'NONE' | 'GOOGLE_ADMOB_APPROVED' | 'WEBSITE_VAST';
+  bannerAdUnitId?: string;
+  interstitialAdUnitId?: string;
+  rewardedAdUnitId?: string;
+  enableBannerPlacements?: boolean;
+  enableInterstitialPlacements?: boolean;
+  enableRewardedPlacements?: boolean;
+  adFrequencyEveryNVideos?: number;
+  adCooldownSeconds?: number;
+  maxAdsPerSession?: number;
+  adTestModeEnabled?: boolean;
   upiPayoutEnabled: boolean;
   usdtPayoutEnabled: boolean;
   upiMinWithdrawalUsd: number;
