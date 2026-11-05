@@ -1041,10 +1041,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Admin Sidebar */}
-        <aside className="w-full lg:w-64 shrink-0 space-y-4">
-          <div className="p-4 rounded-xl color-graded-panel space-y-2">
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+        {/* Admin workspace navigation */}
+        <aside className="w-full lg:w-64 shrink-0 lg:sticky lg:top-24 lg:self-start space-y-4">
+          <div className="p-4 rounded-2xl border border-violet-100 dark:border-violet-900/60 bg-white dark:bg-neutral-900 shadow-sm space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-mono text-blue-600 dark:text-blue-400 font-bold">
                 VAULT UNLOCKED
@@ -1072,7 +1072,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
           <nav
             aria-label="Admin Navigation"
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-1"
+            className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 -mx-1 px-1"
           >
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -1082,10 +1082,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   key={item.id}
                   type="button"
                   onClick={() => onChangeSection(item.id)}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                  aria-current={active ? 'page' : undefined}
+                  className={`flex shrink-0 lg:w-full items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap ${
                     active
-                      ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-semibold shadow-2xs'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-900'
+                      ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/20'
+                      : 'border border-transparent text-neutral-600 dark:text-neutral-400 hover:bg-violet-50 hover:text-violet-700 dark:hover:bg-violet-950/40 dark:hover:text-violet-300'
                   }`}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
